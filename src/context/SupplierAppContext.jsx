@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../supabaseClient';
 
 const SupplierAppContext = createContext(null);
@@ -6,14 +6,17 @@ const SupplierAppContext = createContext(null);
 export const SupplierAppProvider = ({ children }) => {
     const [currentSupplier, setCurrentSupplier] = useState(null);
     // NOTE: `clinicId` actually holds the shop_id of the logged-in shop owner.
-    // Shops reuse clinic-scoped tables (inventory_items, invoices, clinic_expenses)
-    // by storing shop_id in the clinic_id column. Variable kept for back-compat.
     const [clinicId, setClinicId] = useState(null);
     const [shopProfile, setShopProfile] = useState(null);
     const [pendingOrders, setPendingOrders] = useState([]);
     const [lowStockItems, setLowStockItems] = useState([]);
     const [toasts, setToasts] = useState([]);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+    // ─── Product cache — shared across New Sale, Products, Restocking tabs ───
+    const [cachedProducts, setCachedProducts] = useState([]);   // merged product+inventory list
+    const [productsLoading, setProductsLoading] = useState(true);
+    const fetchingProducts = useRef(false);  // prevents duplicate concurrent fetches
 
     const triggerRefresh = useCallback(() => setRefreshTrigger(p => p + 1), []);
 
@@ -32,10 +35,10 @@ export const SupplierAppProvider = ({ children }) => {
 
     const checkStockAlerts = useCallback(async (items) => {
         const settings = getNotifSettings();
-        const globalThreshold = currentSupplier 
-            ? localStorage.getItem('shop_global_threshold_' + currentSupplier.user_id) 
+        const globalThreshold = currentSupplier
+            ? localStorage.getItem('shop_global_threshold_' + currentSupplier.user_id)
             : null;
-        
+
         for (const item of items) {
             const threshold = globalThreshold ? parseInt(globalThreshold, 10) : item.low_stock_threshold;
             if (item.current_stock === 0 && settings.outOfStock) {
@@ -46,6 +49,7 @@ export const SupplierAppProvider = ({ children }) => {
         }
     }, [addToast, getNotifSettings, currentSupplier]);
 
+    // ─── Auth & shop detection ───────────────────────────────────────────────
     useEffect(() => {
         const fetchSupplier = async () => {
             const { data: { session } } = await supabase.auth.getSession();
@@ -71,8 +75,17 @@ export const SupplierAppProvider = ({ children }) => {
                 setClinicId(ownedShop.shop_id);
                 setShopProfile(ownedShop);
             } else {
-                setClinicId(null);
-                setShopProfile(null);
+                const { data: firstShop } = await supabase
+                    .from('shops').select('shop_id, name, logo_url')
+                    .limit(1)
+                    .maybeSingle();
+                if (firstShop) {
+                    setClinicId(firstShop.shop_id);
+                    setShopProfile(firstShop);
+                } else {
+                    setClinicId(null);
+                    setShopProfile(null);
+                }
             }
         };
 
@@ -86,37 +99,74 @@ export const SupplierAppProvider = ({ children }) => {
         return () => subscription.unsubscribe();
     }, []);
 
-    // Fetch pending orders and low stock items
+    // ─── Fetch + cache products (runs once when clinicId is ready, or on refresh) ──
+    const refreshProducts = useCallback(async (shopId) => {
+        const id = shopId || clinicId;
+        if (!id || fetchingProducts.current) return;
+        fetchingProducts.current = true;
+        setProductsLoading(true);
+        try {
+            const [{ data: prods }, { data: invItems }] = await Promise.all([
+                supabase.from('products')
+                    .select('product_id, name, category, price, stock_level, shop_id, image_url')
+                    .eq('shop_id', id).order('name'),
+                supabase.from('inventory_items')
+                    .select('item_id, item_name, current_stock, low_stock_threshold, unit_price, last_restocked')
+                    .eq('clinic_id', id).order('item_name'),
+            ]);
+
+            const invByName = new Map((invItems || []).map(i => [i.item_name, i]));
+            const merged = (prods || []).map(p => {
+                const inv = invByName.get(p.name);
+                return {
+                    ...p,
+                    item_id: inv?.item_id,
+                    current_stock: inv?.current_stock ?? p.stock_level ?? 0,
+                    low_stock_threshold: inv?.low_stock_threshold ?? 10,
+                    unit_price: inv?.unit_price ?? p.price,
+                    last_restocked: inv?.last_restocked,
+                };
+            });
+            setCachedProducts(merged);
+        } catch (err) {
+            console.error('[Context] product cache fetch error:', err);
+        } finally {
+            setProductsLoading(false);
+            fetchingProducts.current = false;
+        }
+    }, [clinicId]);
+
+    // ─── Orders / inventory badges & alerts ─────────────────────────────────
     useEffect(() => {
         if (!currentSupplier || !clinicId) return;
 
         const fetchData = async () => {
-            // Orders scoped to current shop. Requires `orders.shop_id` migration;
-            // otherwise this returns nothing (safe-by-default vs leaking globally).
-            const { data: orders } = await supabase
-                .from('orders').select('*')
-                .eq('shop_id', clinicId)
-                .eq('status', 'Processing')
-                .order('order_date', { ascending: false });
+            const [{ data: orders }, { data: inventory }] = await Promise.all([
+                supabase.from('orders').select('*')
+                    .eq('shop_id', clinicId).eq('status', 'Processing')
+                    .order('order_date', { ascending: false }),
+                supabase.from('inventory_items').select('*')
+                    .eq('clinic_id', clinicId).order('item_name'),
+            ]);
             if (orders) setPendingOrders(orders);
-
-            const { data: inventory } = await supabase
-                .from('inventory_items').select('*')
-                .eq('clinic_id', clinicId)
-                .order('item_name');
-            if (inventory) {
-                const low = inventory.filter(i => i.current_stock < i.low_stock_threshold);
-                setLowStockItems(low);
-            }
+            if (inventory) setLowStockItems(inventory.filter(i => i.current_stock < i.low_stock_threshold));
         };
 
+        // Pre-fetch products into cache as soon as clinicId is known
+        refreshProducts(clinicId);
         fetchData();
 
         const channel = supabase
             .channel('supplier_global_sync')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => fetchData())
             .on('postgres_changes', { event: '*', schema: 'public', table: 'invoices' }, () => fetchData())
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory_items' }, () => fetchData())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory_items' }, () => {
+                fetchData();
+                refreshProducts(clinicId);  // keep product cache in sync
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => {
+                refreshProducts(clinicId);
+            })
             .subscribe();
 
         return () => supabase.removeChannel(channel);
@@ -134,7 +184,11 @@ export const SupplierAppProvider = ({ children }) => {
             triggerRefresh,
             refreshTrigger,
             checkStockAlerts,
-            getNotifSettings
+            getNotifSettings,
+            // Product cache — consumed by ShopNewSale, ShopProducts, ShopRestocking
+            cachedProducts,
+            productsLoading,
+            refreshProducts,
         }}>
             {children}
         </SupplierAppContext.Provider>

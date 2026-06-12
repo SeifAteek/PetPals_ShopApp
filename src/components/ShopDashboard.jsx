@@ -3,263 +3,338 @@ import { supabase } from '../supabaseClient';
 import { useSupplierApp } from '../context/SupplierAppContext';
 import {
     DollarSign, TrendingUp, ShoppingCart, AlertTriangle, Package,
-    Loader2, CheckCircle2, Clock, ShoppingBag, ArrowDownToLine
+    Loader2, CheckCircle2, Clock
 } from 'lucide-react';
 
-const getRelativeTime = (dateStr) => {
-    const diff = Math.floor((new Date() - new Date(dateStr)) / 60000);
-    if (diff < 1) return 'just now';
-    if (diff < 60) return diff + ' min ago';
-    if (diff < 1440) return Math.floor(diff / 60) + ' hr ago';
-    return Math.floor(diff / 1440) + ' days ago';
+/** Convert an ISO date string to a human-readable relative time label */
+const relativeTime = (dateStr) => {
+    const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 60000);
+    if (diff < 1)    return 'just now';
+    if (diff < 60)   return `${diff} min ago`;
+    if (diff < 1440) return `${Math.floor(diff / 60)} hr ago`;
+    return `${Math.floor(diff / 1440)} days ago`;
 };
 
 const ShopDashboard = ({ onNavigate }) => {
-    const { currentSupplier, clinicId } = useSupplierApp();
-    const [loading, setLoading] = useState(true);
-    const [kpis, setKpis] = useState({ todayRevenue: 0, monthRevenue: 0, pendingOrders: 0, lowStockCount: 0, totalProducts: 0 });
+    const { currentSupplier, clinicId, cachedProducts } = useSupplierApp();
+
+    const [loading,        setLoading]        = useState(true);
+    const [kpis,           setKpis]           = useState({ todayRevenue: 0, monthRevenue: 0, pendingOrders: 0, lowStockCount: 0, totalProducts: 0 });
     const [lowStockAlerts, setLowStockAlerts] = useState([]);
-    const [activityFeed, setActivityFeed] = useState([]);
+    const [activityFeed,   setActivityFeed]   = useState([]);
 
-    useEffect(() => {
-        if (currentSupplier && clinicId) {
-            fetchAll();
-            const channel = supabase.channel('shop_dashboard_rt')
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'invoices' }, () => fetchAll())
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => fetchAll())
-                .subscribe();
-            return () => supabase.removeChannel(channel);
-        }
-    }, [currentSupplier, clinicId]);
+    /* ─────────────────────────── data fetch ─────────────────────────── */
 
-    const fetchAll = async () => {
+    const fetchAll = async (showLoader = true) => {
         if (!clinicId) return;
-        setLoading(true);
+        if (showLoader) setLoading(true);
         try {
             const now = new Date();
-            const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
-            const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+            const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+            const monthStartStr = startOfMonth.toISOString(); // For Supabase server-side filtering
 
-            const { data: todayInv } = await supabase
-                .from('invoices').select('total_amount')
-                .eq('shop_id', clinicId)
-                .eq('status', 'Paid').gte('issue_date', todayStart);
-            const todayRevenue = (todayInv || []).reduce((s, i) => s + Number(i.total_amount), 0);
-
+            /* Revenue */
             const { data: monthInv } = await supabase
-                .from('invoices').select('total_amount')
-                .eq('shop_id', clinicId)
-                .eq('status', 'Paid').gte('issue_date', monthStart);
-            const monthRevenue = (monthInv || []).reduce((s, i) => s + Number(i.total_amount), 0);
+                .from('invoices').select('total_amount, issue_date')
+                .eq('shop_id', clinicId).eq('status', 'Paid')
+                .gte('issue_date', monthStartStr);
+            
+            const monthRevenue = (monthInv || [])
+                .filter(i => new Date(i.issue_date) >= startOfMonth)
+                .reduce((s, i) => s + Number(i.total_amount), 0);
+            
+            const todayRevenue = (monthInv || [])
+                .filter(i => new Date(i.issue_date) >= startOfToday)
+                .reduce((s, i) => s + Number(i.total_amount), 0);
 
+            /* Orders */
             const { count: pendingOrders } = await supabase
                 .from('orders').select('*', { count: 'exact', head: true })
-                .eq('shop_id', clinicId)
-                .eq('status', 'Processing');
+                .eq('shop_id', clinicId).eq('status', 'Processing');
 
-            const { data: invItems } = await supabase
-                .from('inventory_items').select('*')
-                .eq('clinic_id', clinicId)
-                .order('current_stock', { ascending: true });
-            const lowItems = (invItems || []).filter(i => i.current_stock < i.low_stock_threshold);
+            /* Inventory & Products via cachedProducts */
+            const totalProducts = cachedProducts.length;
+            const lowItems = cachedProducts.filter(i => i.current_stock < i.low_stock_threshold);
 
-            const { count: totalProducts } = await supabase
-                .from('products').select('*', { count: 'exact', head: true })
-                .eq('shop_id', clinicId);
+            setKpis({ todayRevenue, monthRevenue, pendingOrders: pendingOrders || 0, lowStockCount: lowItems.length, totalProducts });
 
-            setKpis({
-                todayRevenue,
-                monthRevenue,
-                pendingOrders: pendingOrders || 0,
-                lowStockCount: lowItems.length,
-                totalProducts: totalProducts || 0
-            });
-
-            // Low stock alerts with severity
-            const alertItems = lowItems.map(item => {
-                let severity, severityLabel, severityClass;
-                if (item.current_stock === 0) {
-                    severity = 0; severityLabel = 'Out of stock';
-                    severityClass = 'bg-red-100 text-red-700';
-                } else if (item.current_stock < item.low_stock_threshold / 2) {
-                    severity = 1; severityLabel = 'Critical';
-                    severityClass = 'bg-red-50 text-red-600';
-                } else {
-                    severity = 2; severityLabel = 'Low';
-                    severityClass = 'bg-amber-50 text-amber-600';
-                }
-                return { ...item, severity, severityLabel, severityClass };
+            /* Low-stock alerts with severity */
+            const alerts = lowItems.map(item => {
+                const severity = item.current_stock === 0 ? 0
+                    : item.current_stock < item.low_stock_threshold / 2 ? 1 : 2;
+                const severityLabel = ['Out of Stock', 'Critical', 'Low Stock'][severity];
+                return { ...item, severity, severityLabel };
             }).sort((a, b) => a.severity - b.severity || a.current_stock - b.current_stock);
+            setLowStockAlerts(alerts);
 
-            setLowStockAlerts(alertItems);
-
-            const { data: recentInvoices } = await supabase
+            /* Recent activity */
+            const { data: recentInv } = await supabase
                 .from('invoices').select('invoice_id, total_amount, issue_date, status, guest_client_name')
-                .eq('shop_id', clinicId)
-                .order('issue_date', { ascending: false }).limit(10);
+                .eq('shop_id', clinicId).order('issue_date', { ascending: false }).limit(10);
 
             const { data: recentOrders } = await supabase
-                .from('orders').select('order_id, status, order_date, total_amount, shipping_address, profiles:user_id(user_name)')
-                .eq('shop_id', clinicId)
-                .order('order_date', { ascending: false }).limit(10);
+                .from('orders').select('order_id, status, order_date, total_amount, profiles:user_id(user_name)')
+                .eq('shop_id', clinicId).order('order_date', { ascending: false }).limit(10);
 
             let feed = [];
-
-            (recentInvoices || []).forEach(inv => {
-                if (inv.status === 'Paid') {
-                    feed.push({
-                        id: 'inv-' + inv.invoice_id,
-                        type: 'sale',
-                        dotColor: 'bg-emerald-500',
-                        title: `Sale completed — EGP ${Number(inv.total_amount).toFixed(2)}`,
-                        desc: inv.guest_client_name || 'Customer',
-                        timestamp: inv.issue_date
-                    });
-                }
-            });
-
-            (recentOrders || []).forEach(o => {
-                const name = (o.profiles && o.profiles.user_name) || 'Customer';
-                if (o.status === 'Processing') {
-                    feed.push({
-                        id: 'order-new-' + o.order_id,
-                        type: 'online_order',
-                        dotColor: 'bg-blue-500',
-                        title: `New online order from ${name}`,
-                        desc: `EGP ${Number(o.total_amount).toFixed(2)}`,
-                        timestamp: o.order_date
-                    });
-                }
-            });
-
+            (recentInv || []).filter(i => i.status === 'Paid').forEach(inv => feed.push({
+                id: 'inv-' + inv.invoice_id, type: 'sale', dotColor: '#10B981',
+                title: `Sale completed — EGP ${Number(inv.total_amount).toFixed(2)}`,
+                desc:  inv.guest_client_name || 'Walk-in Customer',
+                timestamp: inv.issue_date,
+            }));
+            (recentOrders || []).filter(o => o.status === 'Processing').forEach(o => feed.push({
+                id: 'ord-' + o.order_id, type: 'online_order', dotColor: '#3B82F6',
+                title: `New online order — ${o.profiles?.user_name || 'Online Customer'}`,
+                desc:  `EGP ${Number(o.total_amount).toFixed(2)}`,
+                timestamp: o.order_date,
+            }));
             feed.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-            setActivityFeed(feed.slice(0, 10));
+            setActivityFeed(feed.slice(0, 12));
         } catch (err) {
-            console.error('Dashboard fetch error:', err);
+            console.error('[ShopDashboard] fetch error:', err);
         } finally {
             setLoading(false);
         }
     };
 
+    useEffect(() => {
+        if (currentSupplier && clinicId) {
+            fetchAll(true);  /* ← show spinner on initial load */
+
+            /* Realtime subscription: update silently (no spinner) */
+            const channel = supabase.channel('shop_dashboard_rt')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'invoices' }, () => fetchAll(false))
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'orders'   }, () => fetchAll(false))
+                .subscribe();
+            return () => supabase.removeChannel(channel);
+        }
+    }, [currentSupplier, clinicId]);
+
+    /* ─────────────────────────── loading state ─────────────────────────── */
+
     if (loading) {
-        return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-brand-500" /></div>;
+        return (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '80px 0' }}>
+                <Loader2 style={{ width: 32, height: 32, color: 'var(--pp-primary, #2E7D32)', animation: 'spin 1s linear infinite' }} />
+            </div>
+        );
     }
 
-    const todayDate = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+    /* ─────────────────────────── derived data ─────────────────────────── */
 
-    const summaryParts = [];
-    if (kpis.pendingOrders > 0) summaryParts.push(`${kpis.pendingOrders} pending online order${kpis.pendingOrders > 1 ? 's' : ''}`);
-    if (kpis.lowStockCount > 0) summaryParts.push(`${kpis.lowStockCount} item${kpis.lowStockCount > 1 ? 's' : ''} running low`);
-    const summaryLine = summaryParts.length > 0 ? `You have ${summaryParts.join(' and ')}.` : 'Everything looks great today!';
+    const todayDate   = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+    const parts       = [];
+    if (kpis.pendingOrders > 0) parts.push(`${kpis.pendingOrders} pending order${kpis.pendingOrders > 1 ? 's' : ''}`);
+    if (kpis.lowStockCount  > 0) parts.push(`${kpis.lowStockCount} low-stock item${kpis.lowStockCount > 1 ? 's' : ''}`);
+    const summary = parts.length > 0 ? `You have ${parts.join(' and ')}.` : 'All systems operating normally today.';
+
+    /* ─────────────────────────── style constants ─────────────────────────── */
+
+    const CARD = {
+        background:   'var(--pp-card-bg,     #FFFFFF)',
+        border:       '1px solid var(--pp-card-border, #D1E7DD)',
+        borderRadius: 'var(--pp-r-2xl,       18px)',
+        boxShadow:    'var(--pp-shadow-resting, 0 1px 3px rgba(0,0,0,0.06))',
+    };
+    const PRIMARY      = 'var(--pp-primary,        #2E7D32)';
+    const PRIMARY_LIGHT= 'var(--pp-primary-light,  rgba(46,125,50,0.10))';
+    const TEXT_P       = 'var(--pp-text-primary,   #111827)';
+    const TEXT_S       = 'var(--pp-text-secondary, #374151)';
+    const TEXT_M       = 'var(--pp-text-muted,     #6B7280)';
+
+    const hoverIn  = (e, shadow = 'var(--pp-shadow-raised, 0 6px 20px rgba(46,125,50,0.14))') => {
+        e.currentTarget.style.boxShadow = shadow;
+        e.currentTarget.style.transform = 'translateY(-2px)';
+    };
+    const hoverOut = (e) => {
+        e.currentTarget.style.boxShadow = 'var(--pp-shadow-resting, 0 1px 3px rgba(0,0,0,0.06))';
+        e.currentTarget.style.transform = 'translateY(0)';
+    };
+
+    /* ─────────────────────────── KPI definitions ─────────────────────────── */
+
+    const kpiCards = [
+        {
+            label:  "Today's Revenue",
+            value:  `EGP ${kpis.todayRevenue.toFixed(2)}`,
+            icon:   DollarSign,
+            tab:    'reports',
+            accent: PRIMARY,
+            iconBg: PRIMARY_LIGHT,
+        },
+        {
+            label:  'Monthly Revenue',
+            value:  `EGP ${kpis.monthRevenue.toFixed(2)}`,
+            icon:   TrendingUp,
+            tab:    'reports',
+            accent: PRIMARY,
+            iconBg: PRIMARY_LIGHT,
+        },
+        {
+            label:  'Pending Orders',
+            value:  String(kpis.pendingOrders),
+            icon:   ShoppingCart,
+            tab:    'online-orders',
+            accent: kpis.pendingOrders > 0 ? '#F59E0B' : PRIMARY,
+            iconBg: kpis.pendingOrders > 0 ? 'rgba(245,158,11,0.09)' : PRIMARY_LIGHT,
+            warnBorder: kpis.pendingOrders > 0,
+            shadowWarn: kpis.pendingOrders > 0 ? 'rgba(245,158,11,0.14)' : undefined,
+        },
+        {
+            label:  'Low Stock Items',
+            value:  String(kpis.lowStockCount),
+            icon:   AlertTriangle,
+            tab:    'settings',
+            accent: kpis.lowStockCount > 0 ? '#EF4444' : PRIMARY,
+            iconBg: kpis.lowStockCount > 0 ? 'rgba(239,68,68,0.08)' : PRIMARY_LIGHT,
+            warnBorder: kpis.lowStockCount > 0,
+            danger: kpis.lowStockCount > 0,
+            shadowWarn: kpis.lowStockCount > 0 ? 'rgba(239,68,68,0.14)' : undefined,
+        },
+        {
+            label:  'Product Catalog',
+            value:  String(kpis.totalProducts),
+            icon:   Package,
+            tab:    'products',
+            accent: PRIMARY,
+            iconBg: PRIMARY_LIGHT,
+        },
+    ];
+
+    /* ─────────────────────────── render ─────────────────────────── */
 
     return (
-        <div className="space-y-8 animate-in fade-in duration-500">
-            {/* Greeting */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+
+            {/* ── Greeting ── */}
             <div>
-                <h2 className="text-2xl font-bold text-slate-800">
-                    Welcome back, {currentSupplier ? currentSupplier.user_name : 'Shop Owner'}
+                <h2 style={{ fontSize: 22, fontWeight: 800, color: TEXT_P, margin: 0, letterSpacing: '-0.02em' }}>
+                    Welcome back, {currentSupplier ? currentSupplier.user_name : 'Shop Manager'}
                 </h2>
-                <p className="text-slate-500 mt-1">{todayDate}</p>
-                <p className="text-sm text-slate-600 mt-2 bg-slate-50 inline-block px-4 py-2 rounded-xl border border-slate-100">
-                    {summaryLine}
-                </p>
+                <p style={{ fontSize: 13, color: TEXT_M, margin: '4px 0 14px' }}>{todayDate}</p>
+                <span style={{
+                    display: 'inline-block',
+                    background: PRIMARY_LIGHT,
+                    border: '1px solid var(--pp-card-border, #D1E7DD)',
+                    borderRadius: 99,
+                    padding: '5px 14px',
+                    fontSize: 12,
+                    color: TEXT_S,
+                    fontWeight: 500,
+                }}>
+                    {summary}
+                </span>
             </div>
 
-            {/* KPI Strip — 5 cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-                <div onClick={() => onNavigate('reports')} className="bg-white p-5 rounded-2xl border border-emerald-100 shadow-soft cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all">
-                    <div className="flex items-center justify-between mb-3">
-                        <div className="p-2.5 rounded-xl bg-emerald-50"><DollarSign className="w-5 h-5 text-emerald-600" /></div>
-                    </div>
-                    <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider">Today's Revenue</p>
-                    <h3 className="text-2xl font-bold text-slate-900 mt-1">EGP {kpis.todayRevenue.toFixed(2)}</h3>
-                </div>
-                <div onClick={() => onNavigate('reports')} className="bg-white p-5 rounded-2xl border border-emerald-100 shadow-soft cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all">
-                    <div className="flex items-center justify-between mb-3">
-                        <div className="p-2.5 rounded-xl bg-emerald-50"><TrendingUp className="w-5 h-5 text-emerald-600" /></div>
-                    </div>
-                    <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider">This Month</p>
-                    <h3 className="text-2xl font-bold text-slate-900 mt-1">EGP {kpis.monthRevenue.toFixed(2)}</h3>
-                </div>
-                <div onClick={() => onNavigate('online-orders')} className={`bg-white p-5 rounded-2xl border shadow-soft cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all ${kpis.pendingOrders > 0 ? 'border-amber-200' : 'border-slate-100'}`}>
-                    <div className="flex items-center justify-between mb-3">
-                        <div className={`p-2.5 rounded-xl ${kpis.pendingOrders > 0 ? 'bg-amber-50' : 'bg-slate-50'}`}>
-                            <ShoppingCart className={`w-5 h-5 ${kpis.pendingOrders > 0 ? 'text-amber-600' : 'text-slate-500'}`} />
+            {/* ── KPI strip ── */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(155px, 1fr))', gap: 14 }}>
+                {kpiCards.map(({ label, value, icon: Icon, tab, accent, iconBg, warnBorder, danger, shadowWarn }) => (
+                    <div
+                        key={label}
+                        id={`kpi-${label.toLowerCase().replace(/\s+/g,'_')}`}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => onNavigate(tab)}
+                        onKeyDown={e => e.key === 'Enter' && onNavigate(tab)}
+                        style={{
+                            ...CARD,
+                            padding: 18,
+                            cursor: 'pointer',
+                            transition: 'all 0.18s ease',
+                            borderColor: warnBorder
+                                ? (danger ? 'rgba(239,68,68,0.3)' : 'rgba(245,158,11,0.3)')
+                                : 'var(--pp-card-border, #D1E7DD)',
+                        }}
+                        onMouseEnter={e => hoverIn(e, `0 6px 20px ${shadowWarn || 'rgba(46,125,50,0.14)'}`)}
+                        onMouseLeave={hoverOut}
+                    >
+                        <div style={{ display: 'inline-flex', background: iconBg, borderRadius: 12, padding: 10, marginBottom: 12 }}>
+                            <Icon style={{ width: 20, height: 20, color: accent }} />
                         </div>
+                        <p style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: accent, margin: 0 }}>
+                            {label}
+                        </p>
+                        <h3 style={{ fontSize: 21, fontWeight: 800, color: TEXT_P, margin: '5px 0 0', lineHeight: 1.2, letterSpacing: '-0.02em' }}>
+                            {value}
+                        </h3>
                     </div>
-                    <p className={`text-xs font-semibold uppercase tracking-wider ${kpis.pendingOrders > 0 ? 'text-amber-600' : 'text-slate-500'}`}>Pending Orders</p>
-                    <h3 className="text-2xl font-bold text-slate-900 mt-1">{kpis.pendingOrders}</h3>
-                </div>
-                <div onClick={() => onNavigate('settings')} className={`bg-white p-5 rounded-2xl border shadow-soft cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all ${kpis.lowStockCount > 0 ? 'border-red-200' : 'border-slate-100'}`}>
-                    <div className="flex items-center justify-between mb-3">
-                        <div className={`p-2.5 rounded-xl ${kpis.lowStockCount > 0 ? 'bg-red-50' : 'bg-slate-50'}`}>
-                            <AlertTriangle className={`w-5 h-5 ${kpis.lowStockCount > 0 ? 'text-red-600' : 'text-slate-500'}`} />
-                        </div>
-                    </div>
-                    <p className={`text-xs font-semibold uppercase tracking-wider ${kpis.lowStockCount > 0 ? 'text-red-600' : 'text-slate-500'}`}>Low Stock</p>
-                    <h3 className="text-2xl font-bold text-slate-900 mt-1">{kpis.lowStockCount}</h3>
-                </div>
-                <div onClick={() => onNavigate('products')} className="bg-white p-5 rounded-2xl border border-slate-100 shadow-soft cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all">
-                    <div className="flex items-center justify-between mb-3">
-                        <div className="p-2.5 rounded-xl bg-slate-50"><Package className="w-5 h-5 text-slate-500" /></div>
-                    </div>
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Products</p>
-                    <h3 className="text-2xl font-bold text-slate-900 mt-1">{kpis.totalProducts}</h3>
-                </div>
+                ))}
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Low Stock Alert Panel */}
-                <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-100 shadow-soft">
-                    <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-                        <AlertTriangle className="w-5 h-5 text-red-500" /> Low Stock Alerts
-                    </h3>
+            {/* ── Bottom panels ── */}
+            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 20 }}>
+
+                {/* Inventory alerts */}
+                <div style={{ ...CARD, padding: 24 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                        <AlertTriangle style={{ width: 17, height: 17, color: '#EF4444', flexShrink: 0 }} />
+                        <h3 style={{ fontSize: 14, fontWeight: 700, color: TEXT_P, margin: 0 }}>Inventory Alerts</h3>
+                    </div>
+
                     {lowStockAlerts.length === 0 ? (
-                        <div className="flex items-center gap-3 p-4 bg-emerald-50 rounded-xl border border-emerald-100">
-                            <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-                            <p className="text-sm font-medium text-emerald-700">All stock levels are healthy</p>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(16,185,129,0.07)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 12, padding: '12px 16px' }}>
+                            <CheckCircle2 style={{ width: 18, height: 18, color: '#10B981', flexShrink: 0 }} />
+                            <div>
+                                <p style={{ fontSize: 13, fontWeight: 600, color: '#065F46', margin: 0 }}>Inventory levels are healthy</p>
+                                <p style={{ fontSize: 12, color: '#059669', margin: '2px 0 0' }}>No restocking required at this time</p>
+                            </div>
                         </div>
                     ) : (
-                        <div className="space-y-3">
-                            {lowStockAlerts.map(item => (
-                                <div key={item.item_id} onClick={() => onNavigate('settings')} className={`flex items-center justify-between p-3 border rounded-xl transition-all cursor-pointer hover:shadow-sm hover:scale-[1.01] ${
-                                    item.severity === 0 ? 'border-red-200 bg-red-50/30 hover:bg-red-50' :
-                                    item.severity === 1 ? 'border-red-100 bg-red-50/20 hover:bg-red-50' :
-                                    'border-amber-100 bg-amber-50/20 hover:bg-amber-50'
-                                }`}>
-                                    <div>
-                                        <p className="font-semibold text-slate-800">{item.item_name}</p>
-                                        <p className="text-xs text-slate-500 mt-0.5">
-                                            Current: <span className="font-bold">{item.current_stock}</span> / Threshold: {item.low_stock_threshold}
-                                        </p>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 300, overflowY: 'auto' }}>
+                            {lowStockAlerts.map(item => {
+                                const isCrit  = item.severity <= 1;
+                                const bdrC    = isCrit ? 'rgba(239,68,68,0.25)'  : 'rgba(245,158,11,0.25)';
+                                const bgC     = isCrit ? 'rgba(239,68,68,0.05)'  : 'rgba(245,158,11,0.05)';
+                                const bgHover = isCrit ? 'rgba(239,68,68,0.10)'  : 'rgba(245,158,11,0.10)';
+                                const textC   = isCrit ? '#EF4444' : '#F59E0B';
+                                return (
+                                    <div
+                                        key={item.item_id}
+                                        onClick={() => onNavigate('settings')}
+                                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 14px', background: bgC, border: `1px solid ${bdrC}`, borderRadius: 12, cursor: 'pointer', transition: 'background 0.14s' }}
+                                        onMouseEnter={e => e.currentTarget.style.background = bgHover}
+                                        onMouseLeave={e => e.currentTarget.style.background = bgC}
+                                    >
+                                        <div>
+                                            <p style={{ fontSize: 13, fontWeight: 600, color: TEXT_P, margin: 0 }}>{item.item_name}</p>
+                                            <p style={{ fontSize: 11, color: TEXT_M, margin: '2px 0 0' }}>
+                                                Stock: <strong style={{ color: textC }}>{item.current_stock}</strong> · Min: {item.low_stock_threshold}
+                                            </p>
+                                        </div>
+                                        <span style={{ padding: '3px 10px', borderRadius: 99, fontSize: 10, fontWeight: 700, background: isCrit ? 'rgba(239,68,68,0.12)' : 'rgba(245,158,11,0.12)', color: textC, whiteSpace: 'nowrap', flexShrink: 0 }}>
+                                            {item.severityLabel}
+                                        </span>
                                     </div>
-                                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${item.severityClass}`}>
-                                        {item.severityLabel}
-                                    </span>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     )}
                 </div>
 
-                {/* Activity Feed */}
-                <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-soft">
-                    <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-                        <Clock className="w-5 h-5 text-brand-500" /> Recent Activity
-                    </h3>
-                    <div className="space-y-4">
+                {/* Recent activity */}
+                <div style={{ ...CARD, padding: 24 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                        <Clock style={{ width: 17, height: 17, color: PRIMARY, flexShrink: 0 }} />
+                        <h3 style={{ fontSize: 14, fontWeight: 700, color: TEXT_P, margin: 0 }}>Recent Activity</h3>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                         {activityFeed.length === 0 ? (
-                            <p className="text-slate-500 text-sm">No recent activity.</p>
+                            <p style={{ fontSize: 13, color: TEXT_M, textAlign: 'center', padding: '24px 0', margin: 0 }}>No recent activity.</p>
                         ) : activityFeed.map((event, idx) => (
-                            <div key={event.id || idx} onClick={() => onNavigate(event.type === 'sale' ? 'reports' : 'online-orders')} 
-                                 className="flex items-start gap-3 p-2 -mx-2 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors">
-                                <div className={`w-2.5 h-2.5 rounded-full mt-1.5 shrink-0 ${event.dotColor}`}></div>
-                                <div>
-                                    <p className="text-sm font-medium text-slate-800">{event.title}</p>
-                                    {event.desc && <p className="text-xs text-slate-400 mt-0.5">{event.desc}</p>}
-                                    <p className="text-xs text-slate-500" title={new Date(event.timestamp).toLocaleString()}>
-                                        {getRelativeTime(event.timestamp)}
-                                    </p>
+                            <div
+                                key={event.id || idx}
+                                onClick={() => onNavigate(event.type === 'sale' ? 'reports' : 'online-orders')}
+                                style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '8px 8px', borderRadius: 10, cursor: 'pointer', transition: 'background 0.12s' }}
+                                onMouseEnter={e => e.currentTarget.style.background = PRIMARY_LIGHT}
+                                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                            >
+                                <div style={{ width: 7, height: 7, borderRadius: '50%', background: event.dotColor, flexShrink: 0, marginTop: 7 }} />
+                                <div style={{ minWidth: 0 }}>
+                                    <p style={{ fontSize: 12, fontWeight: 600, color: TEXT_P, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{event.title}</p>
+                                    {event.desc && <p style={{ fontSize: 11, color: TEXT_M, margin: '1px 0 0' }}>{event.desc}</p>}
+                                    <p style={{ fontSize: 11, color: TEXT_M, margin: '1px 0 0' }}>{relativeTime(event.timestamp)}</p>
                                 </div>
                             </div>
                         ))}

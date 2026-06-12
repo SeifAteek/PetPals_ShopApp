@@ -170,7 +170,7 @@ const ShopSettings = () => {
     };
 
     return (
-        <div className="space-y-8 max-w-4xl">
+        <div className="space-y-8 w-full">
             <div>
                 <h2 className="text-2xl font-bold text-slate-800">Settings</h2>
                 <p className="text-slate-500 mt-1">Manage your shop profile, alert thresholds, and notification preferences.</p>
@@ -182,7 +182,7 @@ const ShopSettings = () => {
                     <User className="w-5 h-5 text-brand-500" />
                     <h3 className="font-bold text-slate-800">Shop Profile</h3>
                 </div>
-                <form onSubmit={handleProfileSave} className="p-6 space-y-4 max-w-xl">
+                <form onSubmit={handleProfileSave} className="p-6 space-y-4 w-full">
                     <div>
                         <label className="text-sm font-semibold text-slate-700 block mb-1">Shop Name</label>
                         <input type="text" value={profileData.shopName} onChange={e => setProfileData({ ...profileData, shopName: e.target.value })} required
@@ -256,7 +256,7 @@ const ShopSettings = () => {
                 )}
                 <div className="p-5 border-t border-slate-100 bg-slate-50 flex items-center gap-4">
                     <button onClick={saveThresholds} disabled={thresholdSaving}
-                        className="flex items-center gap-2 px-6 py-2.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-semibold text-sm transition-colors disabled:opacity-50">
+                        className="flex items-center gap-2 px-6 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl font-semibold text-sm transition-colors disabled:opacity-50">
                         {thresholdSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Save All Thresholds
                     </button>
                     {thresholdFeedback === 'success' && <span className="text-sm font-semibold text-emerald-600">Saved!</span>}

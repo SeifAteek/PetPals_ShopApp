@@ -4,143 +4,156 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap');
 
+/* ─── Fallback CSS variables — applied before html.light / html.dark class resolves ─── */
+:root {
+  color-scheme: light;
+  --pp-sky:             #2E7D32;
+  --pp-charcoal:        #111827;
+  --pp-bg:              #F1FBF2;
+  --pp-honeydew:        #F1FBF2;
+  --pp-blush:           #C8E6C9;
+  --pp-almond:          #D1E7DD;
+  --pp-cerulean:        #2E7D32;
+  --pp-navy:            #111827;
+  --pp-primary:         #2E7D32;
+  --pp-primary-light:   rgba(46, 125, 50, 0.12);
+  --pp-primary-deep:    #1B5E20;
+  --pp-text-primary:    #111827;
+  --pp-text-secondary:  #374151;
+  --pp-text-muted:      #6B7280;
+  --pp-text-on-brand:   #ffffff;
+  --pp-card-bg:         #FFFEFB;
+  --pp-card-tint:       none;
+  --pp-glass-stroke:    none;
+  --pp-brand-gradient:  linear-gradient(135deg, #2E7D32 0%, #1B5E20 100%);
+  --pp-shadow-raised:   0 2px 8px rgba(46, 125, 50, 0.06);
+  --pp-shadow-floating: 0 4px 16px rgba(46, 125, 50, 0.08);
+  --pp-shadow-resting:  0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02);
+  --pp-sidebar-bg:      #F1FBF2;
+  --pp-header-bg:       #F1FBF2;
+  --pp-chrome-highlight: none;
+  --pp-bar-tint:         none;
+  --pp-card-border:     #D1E7DD;
+  --pp-input-bg:        #FFFEFB;
+  --pp-input-border:    #C8E6C9;
+  --pp-overlay:         rgba(17, 24, 39, 0.3);
+  --pp-r-sm: 8px;
+  --pp-r-md: 12px;
+  --pp-r-lg: 16px;
+  --pp-r-xl: 18px;
+  --pp-r-2xl: 18px;
+  --pp-r-pill: 9999px;
+  --pp-glass-highlight: none;
+  --pp-blur-glass: blur(0px);
+}
+
 /* ─── Semantic tokens (iOS adaptive colors) ─── */
 html.light {
   color-scheme: light;
-  --pp-honeydew: #f2ffe9;
-  --pp-blush: #f2a4a5;
-  --pp-almond: #e5d4c5;
-  --pp-cerulean: #3078a4;
-  --pp-navy: #090087;
-  --pp-primary: #f2a4a5;
-  --pp-primary-deep: #090087;
-  --pp-text-primary: #090087;
-  --pp-text-secondary: rgba(48, 120, 164, 0.78);
-  --pp-text-muted: rgba(48, 120, 164, 0.55);
-  --pp-text-on-brand: #ffffff;
-  --pp-card-bg: rgba(255, 255, 255, 0.78);
-  --pp-card-tint: linear-gradient(
-    135deg,
-    rgba(242, 164, 165, 0.108) 0%,
-    rgba(242, 255, 233, 0.114) 25%,
-    rgba(229, 212, 197, 0.102) 50%,
-    rgba(48, 120, 164, 0.066) 75%,
-    rgba(9, 0, 135, 0.09) 100%
-  );
-  --pp-glass-stroke: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.75) 0%,
-    rgba(242, 164, 165, 0.5) 35%,
-    rgba(229, 212, 197, 0.35) 65%,
-    rgba(255, 255, 255, 0.1) 100%
-  );
-  --pp-brand-gradient: linear-gradient(
-    135deg,
-    #f2a4a5 0%,
-    rgba(48, 120, 164, 0.85) 55%,
-    #090087 100%
-  );
-  --pp-shadow-raised: 0 6px 16px rgba(9, 0, 135, 0.12);
-  --pp-shadow-floating: 0 12px 24px rgba(9, 0, 135, 0.14);
-  --pp-shadow-resting: 0 2px 8px rgba(9, 0, 135, 0.08);
-  --pp-sidebar-bg: rgba(255, 255, 255, 0.38);
-  --pp-header-bg: rgba(255, 255, 255, 0.32);
-  --pp-chrome-highlight: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.42) 0%,
-    rgba(255, 255, 255, 0.06) 14%,
-    transparent 32%
-  );
-  --pp-bar-tint: linear-gradient(
-    180deg,
-    rgba(242, 164, 165, 0.06) 0%,
-    transparent 100%
-  );
-  --pp-card-border: rgba(242, 164, 165, 0.28);
-  --pp-input-bg: rgba(255, 255, 255, 0.72);
-  --pp-input-border: rgba(9, 0, 135, 0.12);
-  --pp-overlay: rgba(9, 0, 135, 0.28);
-  --pp-r-sm: 18px;
-  --pp-r-md: 24px;
-  --pp-r-lg: 32px;
-  --pp-r-xl: 40px;
-  --pp-r-2xl: 48px;
+  /* ── Mint & Forest Green palette ── */
+  --pp-sky:            #2E7D32;
+  --pp-charcoal:       #111827;
+  --pp-bg:             #F1FBF2;
+
+  /* Keep legacy names for backward compat, map to new values */
+  --pp-honeydew:       #F1FBF2;
+  --pp-blush:          #C8E6C9;
+  --pp-almond:         #D1E7DD;
+  --pp-cerulean:       #2E7D32;
+  --pp-navy:           #111827;
+
+  --pp-primary:        #2E7D32;
+  --pp-primary-light:  rgba(46, 125, 50, 0.12);
+  --pp-primary-deep:   #1B5E20;
+  --pp-text-primary:   #111827;
+  --pp-text-secondary: #374151;
+  --pp-text-muted:     #6B7280;
+  --pp-text-on-brand:  #ffffff;
+
+  --pp-card-bg:        #FFFEFB;
+  --pp-card-tint:      none;
+  --pp-glass-stroke:   none;
+
+  --pp-brand-gradient: linear-gradient(135deg, #2E7D32 0%, #1B5E20 100%);
+
+  --pp-shadow-raised:   0 2px 8px rgba(46, 125, 50, 0.06);
+  --pp-shadow-floating: 0 4px 16px rgba(46, 125, 50, 0.08);
+  --pp-shadow-resting:  0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02);
+
+  --pp-sidebar-bg:     #F1FBF2;
+  --pp-header-bg:      #F1FBF2;
+
+  --pp-chrome-highlight: none;
+  --pp-bar-tint:         none;
+
+  --pp-card-border:    #D1E7DD;
+  --pp-input-bg:       #FFFEFB;
+  --pp-input-border:   #C8E6C9;
+  --pp-overlay:        rgba(17, 24, 39, 0.3);
+
+  --pp-r-sm: 8px;
+  --pp-r-md: 12px;
+  --pp-r-lg: 16px;
+  --pp-r-xl: 18px;
+  --pp-r-2xl: 18px; /* Alignment with Shelter App curve standard */
   --pp-r-pill: 9999px;
-  --pp-glass-highlight: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.55) 0%,
-    rgba(255, 255, 255, 0.12) 10%,
-    transparent 36%
-  );
-  --pp-blur-glass: blur(52px) saturate(200%);
+
+  --pp-glass-highlight: none;
+  /* No blur in light mode — flat white cards */
+  --pp-blur-glass: blur(0px);
 }
 
 html.dark {
   color-scheme: dark;
-  --pp-honeydew: #f2ffe9;
-  --pp-blush: #f2a4a5;
-  --pp-almond: #e5d4c5;
-  --pp-cerulean: #3078a4;
-  --pp-navy: #090087;
-  --pp-primary: #f2a4a5;
-  --pp-primary-deep: #090087;
-  --pp-text-primary: #f2ffe9;
-  --pp-text-secondary: rgba(242, 164, 165, 0.82);
-  --pp-text-muted: rgba(242, 164, 165, 0.55);
-  --pp-text-on-brand: #ffffff;
-  --pp-card-bg: rgba(255, 255, 255, 0.08);
-  --pp-card-tint: linear-gradient(
-    135deg,
-    rgba(242, 164, 165, 0.064) 0%,
-    rgba(48, 120, 164, 0.068) 50%,
-    rgba(9, 0, 135, 0.072) 100%
-  );
-  --pp-glass-stroke: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.75) 0%,
-    rgba(242, 164, 165, 0.5) 35%,
-    rgba(229, 212, 197, 0.35) 65%,
-    rgba(255, 255, 255, 0.1) 100%
-  );
-  --pp-brand-gradient: linear-gradient(
-    135deg,
-    #f2a4a5 0%,
-    rgba(48, 120, 164, 0.85) 55%,
-    #090087 100%
-  );
-  --pp-shadow-raised: 0 6px 16px rgba(0, 0, 0, 0.35);
-  --pp-shadow-floating: 0 12px 24px rgba(0, 0, 0, 0.45);
-  --pp-shadow-resting: 0 2px 10px rgba(0, 0, 0, 0.25);
-  --pp-sidebar-bg: rgba(255, 255, 255, 0.08);
-  --pp-header-bg: rgba(255, 255, 255, 0.06);
-  --pp-chrome-highlight: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.18) 0%,
-    rgba(255, 255, 255, 0.04) 12%,
-    transparent 30%
-  );
-  --pp-bar-tint: linear-gradient(
-    180deg,
-    rgba(242, 164, 165, 0.05) 0%,
-    transparent 100%
-  );
-  --pp-card-border: rgba(255, 255, 255, 0.1);
-  --pp-input-bg: rgba(255, 255, 255, 0.08);
-  --pp-input-border: rgba(255, 255, 255, 0.14);
-  --pp-overlay: rgba(1, 10, 46, 0.55);
-  --pp-r-sm: 18px;
-  --pp-r-md: 24px;
-  --pp-r-lg: 32px;
-  --pp-r-xl: 40px;
-  --pp-r-2xl: 48px;
+  /* ── Dark Green & Graphite palette ── */
+  --pp-sky:            #2E7D32;
+  --pp-charcoal:       #1B221B;
+  --pp-bg:             #0B110B;
+
+  --pp-honeydew:       #0B110B;
+  --pp-blush:          #C8E6C9;
+  --pp-almond:         #D1E7DD;
+  --pp-cerulean:       #2E7D32;
+  --pp-navy:           #0B110B;
+
+  --pp-primary:        #2E7D32;
+  --pp-primary-light:  rgba(46, 125, 50, 0.15);
+  --pp-primary-deep:   #1B5E20;
+  --pp-text-primary:   #F2FFE9;
+  --pp-text-secondary: #C8D8C9;
+  --pp-text-muted:     #8AA08B;
+  --pp-text-on-brand:  #ffffff;
+
+  --pp-card-bg:        #1B221B;
+  --pp-card-tint:      none;
+  --pp-glass-stroke:   none;
+
+  --pp-brand-gradient: linear-gradient(135deg, #2E7D32 0%, #1B5E20 100%);
+
+  --pp-shadow-raised:   0 2px 8px rgba(0,0,0,0.45);
+  --pp-shadow-floating: 0 4px 16px rgba(0,0,0,0.55);
+  --pp-shadow-resting:  0 1px 3px rgba(0,0,0,0.35), 0 1px 2px rgba(0,0,0,0.25);
+
+  --pp-sidebar-bg:     #0B110B;
+  --pp-header-bg:      #0B110B;
+
+  --pp-chrome-highlight: none;
+  --pp-bar-tint:         none;
+
+  --pp-card-border:    #2A362B;
+  --pp-input-bg:       #080C08;
+  --pp-input-border:   #253026;
+  --pp-overlay:        rgba(11, 17, 11, 0.9);
+
+  --pp-r-sm: 8px;
+  --pp-r-md: 12px;
+  --pp-r-lg: 16px;
+  --pp-r-xl: 18px;
+  --pp-r-2xl: 18px;
   --pp-r-pill: 9999px;
-  --pp-glass-highlight: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.28) 0%,
-    rgba(255, 255, 255, 0.06) 12%,
-    transparent 38%
-  );
-  --pp-blur-glass: blur(52px) saturate(200%);
+
+  --pp-glass-highlight: none;
+  --pp-blur-glass: blur(0px);
 }
 
 @layer base {
@@ -188,12 +201,10 @@ html.dark {
     border-radius: var(--pp-r-pill) !important;
   }
 
-  button,
-  [role='button'],
+  /* Only pill-radius on actual form buttons, not nav items */
   input[type='button'],
   input[type='submit'],
-  input[type='reset'],
-  select {
+  input[type='reset'] {
     border-radius: var(--pp-r-pill);
   }
 
@@ -211,14 +222,139 @@ html.dark {
     width: 6px;
     height: 6px;
   }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
   ::-webkit-scrollbar-thumb {
     border-radius: 999px;
-    background: rgba(242, 164, 165, 0.35);
+    background: #D1D5DB;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #9CA3AF;
   }
   html.dark ::-webkit-scrollbar-thumb {
     background: rgba(255, 255, 255, 0.15);
   }
+  html.dark ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.25);
+  }
 }
+
+/* ─── Light-mode brand colour overrides ──────────────────────────────────── */
+/* The Tailwind preset brand palette is still the original PetPals pink.
+   These overrides remap bg-brand-* / text-brand-* to the Shop's green so
+   every button that uses bg-brand-600 is correctly green with white text. */
+
+html.light .bg-brand-600,
+html.light .bg-brand-500 {
+  background-color: var(--pp-primary, #2E7D32) !important;
+  color: #ffffff !important;
+}
+html.light .hover\:bg-brand-700:hover,
+html.light .hover\:bg-brand-600:hover {
+  background-color: var(--pp-primary-deep, #1B5E20) !important;
+  color: #ffffff !important;
+}
+html.light .bg-brand-50  { background-color: rgba(46,125,50,0.08) !important; }
+html.light .bg-brand-100 { background-color: rgba(46,125,50,0.12) !important; }
+html.light .text-brand-700 { color: var(--pp-primary-deep, #1B5E20) !important; }
+html.light .text-brand-600 { color: var(--pp-primary, #2E7D32)      !important; }
+html.light .text-brand-500 { color: var(--pp-primary, #2E7D32)      !important; }
+html.light .border-brand-300 { border-color: rgba(46,125,50,0.35) !important; }
+html.light .ring-1.ring-brand-200,
+html.light [class*="ring-brand"] { --tw-ring-color: rgba(46,125,50,0.30) !important; }
+/* Active category-pill ring highlight */
+html.light .ring-2.ring-brand-200 { --tw-ring-color: rgba(46,125,50,0.25) !important; }
+
+/* Ensure emerald action buttons (Complete Sale, Save) also have white text */
+html.light .bg-emerald-600 { color: #ffffff !important; }
+html.light .bg-emerald-700 { color: #ffffff !important; }
+
+/* ─── Dark-mode Tailwind compatibility overrides ─────────────────────────── */
+/* Components use hardcoded Tailwind slate/white classes that don't auto-adapt.
+   These overrides remap everything so ALL tabs look correct in dark mode. */
+
+/* Text colors */
+html.dark .text-slate-900,
+html.dark .text-slate-800,
+html.dark .text-slate-700 { color: var(--pp-text-primary) !important; }
+html.dark .text-slate-600,
+html.dark .text-slate-500 { color: var(--pp-text-secondary) !important; }
+html.dark .text-slate-400,
+html.dark .text-slate-300,
+html.dark .text-slate-200 { color: var(--pp-text-muted) !important; }
+
+/* Background colors */
+html.dark .bg-white         { background-color: var(--pp-card-bg)   !important; }
+html.dark .bg-slate-50      { background-color: rgba(27,34,27,0.70) !important; }
+html.dark .bg-slate-100     { background-color: rgba(255,255,255,0.07) !important; }
+html.dark .bg-slate-200     { background-color: rgba(255,255,255,0.10) !important; }
+
+/* Borders */
+html.dark .border-slate-100,
+html.dark .border-slate-200 { border-color: var(--pp-card-border) !important; }
+
+/* Dividers */
+html.dark .divide-slate-100 > * + * { border-color: var(--pp-card-border) !important; }
+
+/* Table/list hover rows */
+html.dark .hover\:bg-slate-50:hover,
+html.dark .hover\:bg-slate-50\/80:hover,
+html.dark .hover\:bg-slate-50\/50:hover { background-color: rgba(255,255,255,0.04) !important; }
+
+/* Brand primary buttons (bg-brand-600 etc.) */
+html.dark .bg-brand-600,
+html.dark .bg-brand-500     { background-color: var(--pp-primary)      !important; color: #fff !important; }
+html.dark .hover\:bg-brand-700:hover,
+html.dark .hover\:bg-brand-600:hover { background-color: var(--pp-primary-deep) !important; }
+html.dark .text-brand-600,
+html.dark .text-brand-700   { color: #66BB6A !important; }
+html.dark .text-brand-500   { color: var(--pp-primary) !important; }
+html.dark .bg-brand-50      { background-color: rgba(46,125,50,0.15) !important; }
+html.dark .border-brand-300 { border-color: rgba(46,125,50,0.35) !important; }
+html.dark .ring-brand-200   { --tw-ring-color: rgba(46,125,50,0.25) !important; }
+
+/* Emerald success buttons */
+html.dark .bg-emerald-600        { background-color: #2E7D32 !important; }
+html.dark .hover\:bg-emerald-700:hover { background-color: #1B5E20 !important; }
+html.dark .bg-emerald-50         { background-color: rgba(16,185,129,0.10) !important; }
+html.dark .border-emerald-100    { border-color: rgba(16,185,129,0.20) !important; }
+html.dark .text-emerald-600      { color: #4ADE80 !important; }
+
+/* Amber warning */
+html.dark .bg-amber-50           { background-color: rgba(245,158,11,0.10) !important; }
+html.dark .border-amber-100      { border-color: rgba(245,158,11,0.20) !important; }
+html.dark .text-amber-600        { color: #FCD34D !important; }
+
+/* Red danger */
+html.dark .bg-red-50             { background-color: rgba(239,68,68,0.10) !important; }
+html.dark .border-red-100        { border-color: rgba(239,68,68,0.20) !important; }
+html.dark .text-red-600          { color: #FCA5A5 !important; }
+html.dark .text-red-500          { color: #F87171 !important; }
+
+/* Category badges */
+html.dark .bg-blue-100    { background-color: rgba(59,130,246,0.15) !important; }
+html.dark .bg-emerald-100 { background-color: rgba(16,185,129,0.15) !important; }
+html.dark .bg-amber-100   { background-color: rgba(245,158,11,0.15) !important; }
+html.dark .bg-pink-100    { background-color: rgba(236,72,153,0.15) !important; }
+html.dark .bg-red-100     { background-color: rgba(239,68,68,0.15)  !important; }
+html.dark .text-blue-700  { color: #93C5FD !important; }
+html.dark .text-emerald-700 { color: #6EE7B7 !important; }
+html.dark .text-amber-700 { color: #FCD34D !important; }
+html.dark .text-pink-700  { color: #F9A8D4 !important; }
+html.dark .text-red-700   { color: #FCA5A5 !important; }
+
+/* Inputs */
+html.dark input,
+html.dark select,
+html.dark textarea {
+  background-color: var(--pp-input-bg)     !important;
+  border-color:     var(--pp-input-border) !important;
+  color:            var(--pp-text-primary) !important;
+}
+
+/* Modal backdrop */
+html.dark .bg-black\/30 { background-color: rgba(0,0,0,0.55) !important; }
 
 /* ─── iOS ambient background layers ─── */
 .pp-mesh {
@@ -412,11 +548,12 @@ html.dark {
   .pp-card,
   .clinic-card,
   .glass-panel {
-    border-radius: var(--pp-r-2xl);
+    border-radius: var(--pp-r-2xl); /* This now resolves to 18px */
+    border: 1px solid var(--pp-card-border);
   }
 
   .pp-liquid-glass--xl {
-    border-radius: 56px;
+    border-radius: 24px;
   }
 
   .pp-liquid-glass--pill,
@@ -655,7 +792,7 @@ html.dark {
   }
   .pp-nav-idle:hover {
     color: var(--pp-text-primary);
-    background: rgba(242, 164, 165, 0.12);
+    background: rgba(200, 230, 201, 0.12);
     backdrop-filter: blur(16px);
   }
 
@@ -700,7 +837,7 @@ html.dark {
   select[class*='border-white/']:focus {
     outline: none;
     border-color: var(--pp-blush) !important;
-    box-shadow: 0 0 0 3px rgba(242, 164, 165, 0.28);
+    box-shadow: 0 0 0 3px rgba(200, 230, 201, 0.28);
   }
 
   /* textarea/select can use full liquid glass when wrapped */
@@ -730,7 +867,7 @@ html.dark {
     font-weight: 700;
     color: var(--pp-text-on-brand) !important;
     background: var(--pp-brand-gradient);
-    box-shadow: 0 0 40px -8px rgba(242, 164, 165, 0.45);
+    box-shadow: 0 0 40px -8px rgba(200, 230, 201, 0.45);
     transition: filter 0.2s, transform 0.15s;
   }
   .btn-primary:hover {
@@ -801,7 +938,7 @@ html.dark {
     color: var(--pp-text-on-brand) !important;
   }
 
-  html.light .text-white:not(.on-brand):not(.keep-white):not(.on-brand *),
+  html.light .text-white:not(.on-brand):not(.keep-white):not(.on-brand *):not(.bg-brand-500):not(.bg-brand-600):not(.bg-brand-700):not(.bg-emerald-600):not(.bg-emerald-700),
   html.light .text-slate-900,
   html.light .text-slate-800 {
     color: var(--pp-text-primary) !important;
@@ -841,8 +978,9 @@ html.dark {
   html.light .bg-slate-50,
   html.light .bg-slate-100,
   html.light [class*='bg-white/'] {
-    background: var(--pp-card-bg) !important;
-    backdrop-filter: blur(40px) saturate(180%);
+    background: #FFFFFF !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
   }
   html.dark .bg-white,
   html.dark .bg-slate-50,
@@ -868,16 +1006,86 @@ html.dark {
 
   html.light .border-slate-100,
   html.light .border-slate-200,
+  html.light [class*='border-white/'] {
+    border-color: #F3F4F6 !important;
+  }
   html.dark .border-slate-100,
   html.dark .border-slate-200,
-  html.light [class*='border-white/'],
   html.dark [class*='border-white/'] {
-    border-color: rgba(242, 164, 165, 0.2) !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
   }
 
-  html.light .hover\:bg-slate-100:hover,
+  html.light .hover\:bg-slate-100:hover {
+    background: #F3F4F6 !important;
+  }
   html.dark .hover\:bg-slate-100:hover {
-    background: rgba(242, 164, 165, 0.12) !important;
+    background: rgba(200, 230, 201, 0.12) !important;
+  }
+
+  /* ── Flat white cards in light mode — no glassmorphism ── */
+  html.light .pp-card,
+  html.light .clinic-card,
+  html.light .glass-panel,
+  html.light .pp-liquid-glass,
+  html.light .pp-glass {
+    background: #FFFFFF !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    border: 1px solid #F3F4F6 !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06) !important;
+  }
+  html.light .pp-card::before,
+  html.light .clinic-card::before,
+  html.light .glass-panel::before,
+  html.light .pp-liquid-glass::before,
+  html.light .pp-glass::before,
+  html.light .pp-card::after,
+  html.light .clinic-card::after,
+  html.light .glass-panel::after,
+  html.light .pp-liquid-glass::after,
+  html.light .pp-glass::after {
+    display: none !important;
+  }
+
+  /* ── Light-mode text color fixes ── */
+  html.light .text-white:not(.on-brand):not(.keep-white):not(.bg-brand-500):not(.bg-brand-600):not(.bg-brand-700):not(.bg-emerald-600):not(.bg-emerald-700) {
+    color: var(--pp-text-primary) !important;
+  }
+  /* Green action buttons must keep white text in light mode */
+  html.light .bg-brand-500,
+  html.light .bg-brand-600,
+  html.light .bg-brand-700,
+  html.light .bg-emerald-600,
+  html.light .bg-emerald-700,
+  html.light .hover\:bg-brand-700:hover,
+  html.light .hover\:bg-emerald-700:hover {
+    color: var(--pp-text-on-brand, #ffffff) !important;
+  }
+  html.light .bg-brand-500 *,
+  html.light .bg-brand-600 *,
+  html.light .bg-brand-700 *,
+  html.light .bg-emerald-600 *,
+  html.light .bg-emerald-700 * {
+    color: inherit !important;
+  }
+  html.light .text-slate-900,
+  html.light .text-slate-800 {
+    color: var(--pp-text-primary) !important;
+  }
+  html.light .text-slate-600,
+  html.light .text-slate-700,
+  html.light .text-slate-500,
+  html.light .text-slate-400,
+  html.light .text-slate-300,
+  html.light .text-slate-200,
+  html.light .text-slate-100 {
+    color: var(--pp-text-secondary) !important;
+  }
+  html.light .text-brand-400,
+  html.light .text-brand-500,
+  html.light .text-brand-600,
+  html.light .text-brand-700 {
+    color: var(--pp-cerulean) !important;
   }
 }
 
@@ -887,4 +1095,239 @@ html.dark {
 .clinic-mesh-glow-violet,
 .clinic-mesh-glow-accent {
   display: none;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   Dashboard 2.0 — PawCare-inspired SaaS shell utility classes
+   ════════════════════════════════════════════════════════════════ */
+
+/* ── Main dashboard frame ── */
+.pp-dashboard-frame {
+  display: flex;
+  min-height: 100vh;
+  background: var(--pp-bg, #F1FBF2);
+}
+
+/* ── Icon rail sidebar ── */
+.pp-icon-rail {
+  width: 72px;
+  min-width: 72px;
+  background: #FFFFFF;
+  border-right: 1px solid var(--pp-card-border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px 0;
+  gap: 4px;
+  box-shadow: var(--pp-shadow-resting);
+  z-index: 20;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+.pp-icon-rail-item {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  color: var(--pp-text-muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  background: transparent;
+  border: none;
+  outline: none;
+}
+
+.pp-icon-rail-item:hover {
+  background: #F3F4F6;
+  color: var(--pp-text-primary);
+}
+
+.pp-icon-rail-item.active {
+  background: var(--pp-charcoal, #111827);
+  color: #FFFFFF !important;
+  border-radius: 14px;
+}
+
+/* Dark mode icon rail */
+html.dark .pp-icon-rail {
+  background: rgba(255,255,255,0.06);
+  border-right-color: rgba(255,255,255,0.08);
+}
+html.dark .pp-icon-rail-item:hover {
+  background: rgba(255,255,255,0.08);
+  color: #F9FAFB;
+}
+html.dark .pp-icon-rail-item.active {
+  background: var(--pp-primary);
+  color: #fff !important;
+}
+
+/* ── Hero banner ── */
+.pp-hero-banner {
+  background: linear-gradient(135deg, #C8E6C9 0%, #D1E7DD 100%);
+  border-radius: 20px;
+  padding: 28px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  min-height: 148px;
+  position: relative;
+  overflow: hidden;
+}
+
+html.dark .pp-hero-banner {
+  background: linear-gradient(135deg, rgba(46,125,50,0.15) 0%, rgba(27,94,32,0.6) 100%);
+  border: 1px solid rgba(46,125,50,0.15);
+}
+
+.pp-hero-banner h2 {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #111827;
+  max-width: 60%;
+  line-height: 1.3;
+  margin: 0;
+}
+
+html.dark .pp-hero-banner h2 {
+  color: #F2FFE9;
+}
+
+/* ── Top bar ── */
+.pp-topbar {
+  height: 64px;
+  min-height: 64px;
+  background: #FFFFFF;
+  border-bottom: 1px solid var(--pp-card-border);
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  gap: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+
+html.dark .pp-topbar {
+  background: rgba(255,255,255,0.06);
+  border-bottom-color: rgba(255,255,255,0.08);
+}
+
+.pp-topbar-search {
+  flex: 1;
+  max-width: 440px;
+  height: 38px;
+  border-radius: 10px;
+  border: 1.5px solid var(--pp-card-border);
+  background: var(--pp-input-bg);
+  padding: 0 14px;
+  font-size: 13px;
+  color: var(--pp-text-primary);
+  outline: none;
+  transition: border-color 0.15s;
+  font-family: inherit;
+}
+
+.pp-topbar-search:focus {
+  border-color: var(--pp-sky);
+  box-shadow: 0 0 0 3px rgba(46,125,50,0.15);
+}
+
+.pp-topbar-search::placeholder {
+  color: var(--pp-text-muted);
+}
+
+/* ── Progress cards ── */
+.pp-progress-card {
+  flex: 1;
+  min-width: 160px;
+  border-radius: 16px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.pp-progress-card--lavender { background: #D1E7DD; }
+.pp-progress-card--peach    { background: #F1FBF2; }
+.pp-progress-card--pink     { background: #C8E6C9; }
+
+.pp-progress-bar {
+  height: 6px;
+  border-radius: 99px;
+  background: rgba(0,0,0,0.10);
+  overflow: hidden;
+}
+.pp-progress-bar-fill {
+  height: 100%;
+  border-radius: 99px;
+  background: #111827;
+}
+
+/* ── Tag pills ── */
+.pp-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1.4;
+}
+.pp-tag--green  { background: #D1FAE5; color: #065F46; }
+.pp-tag--purple { background: #EDE9FE; color: #5B21B6; }
+.pp-tag--blue   { background: #DBEAFE; color: #1D4ED8; }
+.pp-tag--pink   { background: #FCE7F3; color: #9D174D; }
+.pp-tag--amber  { background: #FEF3C7; color: #92400E; }
+.pp-tag--sky    { background: #E0F2FE; color: #0369A1; }
+
+/* Dark mode tags */
+html.dark .pp-tag--green  { background: rgba(5,150,105,0.2); color: #6EE7B7; }
+html.dark .pp-tag--blue   { background: rgba(59,130,246,0.2); color: #93C5FD; }
+html.dark .pp-tag--purple { background: rgba(139,92,246,0.2); color: #C4B5FD; }
+html.dark .pp-tag--amber  { background: rgba(245,158,11,0.2); color: #FCD34D; }
+html.dark .pp-tag--pink   { background: rgba(236,72,153,0.2); color: #F9A8D4; }
+html.dark .pp-tag--sky    { background: rgba(14,165,233,0.2); color: #7DD3FC; }
+
+/* ── Mini calendar widget ── */
+.pp-mini-cal {
+  background: #FFFFFF;
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: var(--pp-shadow-resting);
+  border: 1px solid var(--pp-card-border);
+}
+
+/* ─── Shadow utility (used across shop components) ─── */
+.shadow-soft {
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+}
+html.dark .shadow-soft {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4), 0 1px 4px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* ─── Dark mode: solid background (no gradient) ─── */
+html.dark body {
+  background: var(--pp-bg);
+}
+
+/* ─── Card content visibility fix: ensure children render above pseudo-elements ─── */
+.pp-liquid-glass > *,
+.pp-glass > *,
+.pp-card > *,
+.clinic-card > *,
+.glass-panel > *,
+.pp-auto-glass > *,
+.rounded-2xl[class*='bg-white']:not(.pp-no-glass):not(button):not(input):not(select):not(a) > *,
+.rounded-xl[class*='bg-white']:not(.pp-no-glass):not(button):not(input):not(select):not(a) > *,
+.rounded-lg[class*='bg-white']:not(.pp-no-glass):not(button):not(input):not(select):not(a) > * {
+  position: relative !important;
+  z-index: 10 !important;
 }

@@ -173,8 +173,8 @@ const ShopReports = () => {
         <div className="space-y-8">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
-                    <h2 className="text-2xl font-bold text-slate-800">Reports & Analytics</h2>
-                    <p className="text-slate-500 mt-1">Understand your business performance at a glance.</p>
+                    <h2 className="text-2xl font-bold" style={{ color: 'var(--pp-text-primary, #111827)' }}>Reports &amp; Analytics</h2>
+                    <p className="mt-1" style={{ color: 'var(--pp-text-muted, #6B7280)', fontSize: 14 }}>Understand your business performance at a glance.</p>
                 </div>
                 <div className="flex items-center gap-3">
                     <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2 shadow-sm">
@@ -216,10 +216,11 @@ const ShopReports = () => {
                     <h3 className="text-2xl font-bold text-slate-900 mt-1">{kpis.totalOrders}</h3>
                 </div>
                 <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-soft">
-                    <div className="p-2.5 rounded-xl bg-tangerine-50 w-fit mb-3"><DollarSign className="w-5 h-5 text-tangerine-600" /></div>
-                    <p className="text-xs font-semibold text-tangerine-600 uppercase tracking-wider">Avg. Sale</p>
+                    <div className="p-2.5 rounded-xl bg-amber-50 w-fit mb-3"><DollarSign className="w-5 h-5 text-amber-600" /></div>
+                    <p className="text-xs font-semibold text-amber-600 uppercase tracking-wider">Avg. Sale</p>
                     <h3 className="text-2xl font-bold text-slate-900 mt-1">EGP {kpis.avgOrderValue.toFixed(2)}</h3>
                 </div>
+
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -310,8 +311,9 @@ const ShopReports = () => {
                 {/* Revenue by Category */}
                 <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-soft">
                     <h3 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
-                        <BarChart3 className="w-5 h-5 text-tangerine-500" /> Revenue by Category
+                        <BarChart3 className="w-5 h-5 text-amber-500" /> Revenue by Category
                     </h3>
+
                     {categoryRevenue.length === 0 ? <p className="text-sm text-slate-400">No data.</p> : (
                         <div className="space-y-4">
                             {categoryRevenue.map((c, i) => (

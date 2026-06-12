@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../supabaseClient';
 import { useSupplierApp } from '../context/SupplierAppContext';
 import {
@@ -33,9 +33,13 @@ const getStatusConfig = (status) => {
 };
 
 const ShopProducts = () => {
-    const { clinicId, addToast, triggerRefresh } = useSupplierApp();
-    const [products, setProducts] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const { clinicId, addToast, triggerRefresh, cachedProducts, productsLoading, refreshProducts } = useSupplierApp();
+    const [patches, setPatches] = useState({});
+    const products = useMemo(
+        () => cachedProducts.map(p => (patches[p.product_id] ? { ...p, ...patches[p.product_id] } : p)),
+        [cachedProducts, patches]
+    );
+    const loading = productsLoading && products.length === 0;
     const [searchQuery, setSearchQuery] = useState('');
     const [categoryFilter, setCategoryFilter] = useState('All');
     const [statusFilter, setStatusFilter] = useState('All');
@@ -47,42 +51,14 @@ const ShopProducts = () => {
     const [formData, setFormData] = useState({ name: '', category: 'Medicine', price: '', costPrice: '', initialStock: '', threshold: '10' });
     const [formSaving, setFormSaving] = useState(false);
 
-    useEffect(() => { if (clinicId) fetchProducts(); }, [clinicId]);
-
-    const fetchProducts = async () => {
-        try {
-            setLoading(true);
-            // Fetch products and their matching inventory items
-            const { data: prods } = await supabase.from('products').select('*').eq('shop_id', clinicId).order('name');
-            const { data: invItems } = await supabase.from('inventory_items').select('*').eq('clinic_id', clinicId).order('item_name');
-
-            // Match products with inventory items by name
-            const merged = (prods || []).map(p => {
-                const inv = (invItems || []).find(i => i.item_name === p.name);
-                return {
-                    ...p,
-                    item_id: inv?.item_id,
-                    current_stock: inv?.current_stock ?? p.stock_level ?? 0,
-                    low_stock_threshold: inv?.low_stock_threshold ?? 10,
-                    unit_price: inv?.unit_price ?? p.price,
-                    last_restocked: inv?.last_restocked
-                };
-            });
-            setProducts(merged);
-        } catch (err) {
-            console.error('Error fetching products:', err);
-            addToast('Failed to load products.', 'error');
-        } finally {
-            setLoading(false);
-        }
-    };
+    useEffect(() => { setPatches({}); }, [cachedProducts]);
 
     const handleInlineEdit = async (product, field, newVal) => {
         const val = parseInt(newVal, 10);
         if (isNaN(val) || val < 0) { setEditingCell(null); return; }
         setEditingCell(null);
 
-        setProducts(prev => prev.map(p => p.product_id === product.product_id ? { ...p, [field]: val } : p));
+        setPatches(prev => ({ ...prev, [product.product_id]: { ...prev[product.product_id], [field]: val } }));
         setSaveConfirm(product.product_id);
         setTimeout(() => setSaveConfirm(null), 2000);
 
@@ -107,10 +83,16 @@ const ShopProducts = () => {
                 }
             }
             triggerRefresh();
+            refreshProducts(clinicId);
         } catch (err) {
             console.error('Error updating:', err);
             addToast('Failed to update. Please try again.', 'error');
-            fetchProducts();
+            setPatches(prev => {
+                const next = { ...prev };
+                delete next[product.product_id];
+                return next;
+            });
+            refreshProducts(clinicId);
         }
     };
 
@@ -175,7 +157,7 @@ const ShopProducts = () => {
                 addToast(`Product "${name}" added successfully.`, 'success');
             }
             setShowModal(false);
-            fetchProducts();
+            refreshProducts(clinicId);
             triggerRefresh();
         } catch (err) {
             console.error('Error saving product:', err);
@@ -197,7 +179,7 @@ const ShopProducts = () => {
                     .eq('clinic_id', clinicId);
             }
             addToast(`Product "${product.name}" deleted.`, 'success');
-            fetchProducts();
+            refreshProducts(clinicId);
             triggerRefresh();
         } catch (err) {
             console.error('Error deleting:', err);
@@ -232,13 +214,28 @@ const ShopProducts = () => {
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
-                    <h2 className="text-2xl font-bold text-slate-800">My Products</h2>
-                    <p className="text-slate-500 mt-1">Manage your product catalog and stock levels.</p>
-                </div>
-                <button onClick={openAddModal}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl font-semibold text-sm transition-colors shadow-sm">
-                    <Plus className="w-4 h-4" /> Add Product
-                </button>
+                <h2 className="text-2xl font-bold" style={{ color: 'var(--pp-text-primary, #111827)' }}>My Products</h2>
+                <p className="mt-1" style={{ color: 'var(--pp-text-muted, #6B7280)', fontSize: 14 }}>Manage your product catalog and stock levels.</p>
+            </div>
+            <button
+                onClick={openAddModal}
+                style={{
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    padding: '10px 20px',
+                    background: 'var(--pp-primary, #2E7D32)',
+                    color: '#ffffff',
+                    borderRadius: 12, border: 'none',
+                    fontWeight: 700, fontSize: 13,
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 8px rgba(46,125,50,0.25)',
+                    transition: 'all 0.15s ease',
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = 'var(--pp-primary-deep, #1B5E20)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'var(--pp-primary, #2E7D32)'}
+            >
+                <Plus style={{ width: 16, height: 16 }} /> Add Product
+            </button>
+
             </div>
 
             {/* Summary strip */}

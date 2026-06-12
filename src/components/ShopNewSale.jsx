@@ -19,9 +19,9 @@ const getCategoryColor = (cat) => {
 };
 
 const ShopNewSale = () => {
-    const { currentSupplier, clinicId, shopProfile, addToast, triggerRefresh, checkStockAlerts } = useSupplierApp();
-    const [products, setProducts] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const { currentSupplier, clinicId, shopProfile, addToast, triggerRefresh, checkStockAlerts, cachedProducts, productsLoading, refreshProducts } = useSupplierApp();
+    const products = cachedProducts;
+    const loading = productsLoading && products.length === 0;
     const [searchQuery, setSearchQuery] = useState('');
     const [categoryFilter, setCategoryFilter] = useState('All');
 
@@ -40,32 +40,6 @@ const ShopNewSale = () => {
     // Bill modal
     const [billData, setBillData] = useState(null);
     const [showBill, setShowBill] = useState(false);
-
-    useEffect(() => { if (clinicId) fetchProducts(); }, [clinicId]);
-
-    const fetchProducts = async () => {
-        if (!clinicId) return;
-        try {
-            setLoading(true);
-            const { data: prods } = await supabase.from('products').select('*').eq('shop_id', clinicId).order('name');
-            const { data: invItems } = await supabase.from('inventory_items').select('*').eq('clinic_id', clinicId).order('item_name');
-            const merged = (prods || []).map(p => {
-                const inv = (invItems || []).find(i => i.item_name === p.name);
-                return {
-                    ...p,
-                    item_id: inv?.item_id,
-                    current_stock: inv?.current_stock ?? p.stock_level ?? 0,
-                    low_stock_threshold: inv?.low_stock_threshold ?? 10,
-                    unit_price: inv?.unit_price ?? p.price
-                };
-            });
-            setProducts(merged);
-        } catch (err) {
-            addToast('Failed to load products.', 'error');
-        } finally {
-            setLoading(false);
-        }
-    };
 
     const categories = useMemo(() => ['All', ...new Set(products.map(p => p.category).filter(Boolean))], [products]);
 
@@ -182,39 +156,48 @@ const ShopNewSale = () => {
             const { error: oiError } = await supabase.from('order_items').insert(orderItemsInsert);
             if (oiError) throw oiError;
 
-            // 4. Deduct stock from inventory_items and products (scoped to current shop)
-            for (const item of saleItems) {
+            // 4. Deduct stock from inventory_items and products (parallel per item)
+            await Promise.all(saleItems.map(async (item) => {
+                const updates = [];
                 if (item.item_id) {
-                    const { data: invItem } = await supabase.from('inventory_items')
-                        .select('current_stock')
-                        .eq('item_id', item.item_id)
-                        .eq('clinic_id', clinicId)
-                        .maybeSingle();
-                    if (invItem) {
-                        await supabase.from('inventory_items')
-                            .update({ current_stock: Math.max(invItem.current_stock - item.quantity, 0) })
+                    updates.push((async () => {
+                        const { data: invItem } = await supabase.from('inventory_items')
+                            .select('current_stock')
                             .eq('item_id', item.item_id)
-                            .eq('clinic_id', clinicId);
-                    }
+                            .eq('clinic_id', clinicId)
+                            .maybeSingle();
+                        if (invItem) {
+                            await supabase.from('inventory_items')
+                                .update({ current_stock: Math.max(invItem.current_stock - item.quantity, 0) })
+                                .eq('item_id', item.item_id)
+                                .eq('clinic_id', clinicId);
+                        }
+                    })());
                 }
-                const { data: prod } = await supabase.from('products')
-                    .select('stock_level')
-                    .eq('product_id', item.product_id)
-                    .eq('shop_id', clinicId)
-                    .maybeSingle();
-                if (prod) {
-                    await supabase.from('products')
-                        .update({ stock_level: Math.max(prod.stock_level - item.quantity, 0) })
+                updates.push((async () => {
+                    const { data: prod } = await supabase.from('products')
+                        .select('stock_level')
                         .eq('product_id', item.product_id)
-                        .eq('shop_id', clinicId);
-                }
-            }
+                        .eq('shop_id', clinicId)
+                        .maybeSingle();
+                    if (prod) {
+                        await supabase.from('products')
+                            .update({ stock_level: Math.max(prod.stock_level - item.quantity, 0) })
+                            .eq('product_id', item.product_id)
+                            .eq('shop_id', clinicId);
+                    }
+                })());
+                await Promise.all(updates);
+            }));
 
-            // 5. Check stock alerts after sale (scoped to current shop)
-            const { data: updatedInv } = await supabase.from('inventory_items').select('*').eq('clinic_id', clinicId);
-            if (updatedInv) {
-                const alertItems = updatedInv.filter(i => saleItems.some(si => si.item_id === i.item_id));
-                await checkStockAlerts(alertItems);
+            // 5. Check stock alerts for sold items only
+            const soldItemIds = saleItems.map(i => i.item_id).filter(Boolean);
+            if (soldItemIds.length) {
+                const { data: updatedInv } = await supabase.from('inventory_items')
+                    .select('item_id, item_name, current_stock, low_stock_threshold')
+                    .eq('clinic_id', clinicId)
+                    .in('item_id', soldItemIds);
+                if (updatedInv?.length) await checkStockAlerts(updatedInv);
             }
 
             // 6. Auto-save a receipt now that the sale is paid in full.
@@ -282,7 +265,7 @@ const ShopNewSale = () => {
             setCustomerSearch('');
             setDiscount(0);
             setPaymentMethod('Cash');
-            fetchProducts();
+            refreshProducts(clinicId);
 
         } catch (err) {
             console.error('Sale error:', err);
@@ -299,9 +282,10 @@ const ShopNewSale = () => {
     return (
         <div className="space-y-6">
             <div>
-                <h2 className="text-2xl font-bold text-slate-800">New Sale</h2>
-                <p className="text-slate-500 mt-1">Process walk-in customer purchases.</p>
+                <h2 className="text-2xl font-bold" style={{ color: 'var(--pp-text-primary, #111827)' }}>New Sale</h2>
+                <p className="mt-1" style={{ color: 'var(--pp-text-muted, #6B7280)', fontSize: 14 }}>Process walk-in customer purchases.</p>
             </div>
+
 
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
                 {/* Left — Product Selector */}

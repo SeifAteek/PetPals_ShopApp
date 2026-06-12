@@ -68,6 +68,8 @@ module.exports = {
         pp: '0 6px 16px rgba(9, 0, 135, 0.12)',
         'pp-float': '0 12px 24px rgba(9, 0, 135, 0.14)',
         glow: '0 0 40px -8px rgba(242, 164, 165, 0.45)',
+        soft: '0 1px 4px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04)',
+        raised: '0 4px 16px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.05)',
       },
       backgroundImage: {
         'pp-brand': 'linear-gradient(135deg, #f2a4a5 0%, rgba(48, 120, 164, 0.85) 55%, #090087 100%)',

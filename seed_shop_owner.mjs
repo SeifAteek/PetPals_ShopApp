@@ -1,15 +1,15 @@
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
-dotenv.config({ path: '.env.local' });
+dotenv.config({ path: '.env' });
 
 const supabase = createClient(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY);
 
 /**
- * Seed data for the Shop Owner Management App.
- * Uses only existing tables & columns. Zero new tables or columns.
+ * Enhanced Seed data for the Shop Owner Management App.
+ * Seeds 16 premium products, 8 customer accounts, 15 orders, and rich expense/invoice history.
  */
 async function seed() {
-    console.log('=== PetPals Shop Owner Seed ===\n');
+    console.log('=== PetPals Shop Owner Seed (Enhanced Data Entry) ===\n');
 
     // Step 1: Authenticate as the shop owner
     console.log('1. Logging in as shop owner...');
@@ -34,24 +34,69 @@ async function seed() {
     if (existingShop) {
         shopClinicId = existingShop.shop_id;
         console.log('   Using existing shop:', shopClinicId.slice(0, 8));
+        
+        // Update the shop's owner_id and name
+        await supabase.from('shops').update({
+            owner_id: ownerId,
+            name: 'Paws & Care Shop'
+        }).eq('shop_id', shopClinicId);
+        console.log('   ✓ Shop linked to owner:', ownerId);
     } else {
-        console.log('   ⚠️ No shop found in shops table! You must manually insert a row in the Supabase Dashboard.');
-        return;
+        console.log('   ⚠️ No shop found in shops table! Creating one...');
+        const { data: newShop, error: nsErr } = await supabase.from('shops').insert({
+            name: 'Paws & Care Shop',
+            owner_id: ownerId,
+            rating: 5,
+            is_verified: true
+        }).select().single();
+        if (nsErr) {
+            console.error('Failed to create shop:', nsErr.message);
+            return;
+        }
+        shopClinicId = newShop.shop_id;
+        console.log('   ✓ New shop created:', shopClinicId.slice(0, 8));
     }
 
-    // Step 2: Seed 10 Products
-    console.log('\n2. Seeding 10 products...');
+    // Shadow clinic profile in clinics table
+    const { data: clinicShadow } = await supabase.from('clinics').select('clinic_id').eq('clinic_id', shopClinicId).maybeSingle();
+    if (!clinicShadow) {
+        const { error: cShadowErr } = await supabase.from('clinics').insert({
+            clinic_id: shopClinicId,
+            name: 'Paws & Care Shop Clinic Shadow',
+            owner_id: ownerId,
+            location: 'Cairo, Egypt',
+            phone: '+20100000010'
+        });
+        if (cShadowErr) {
+            console.error('Failed to create clinic shadow:', cShadowErr.message);
+        } else {
+            console.log('   ✓ Shadow clinic profile created in clinics table');
+        }
+    }
+
+    // Step 2: Seed 16 Premium Products
+    console.log('\n2. Seeding 16 premium products...');
     const productsData = [
-        { name: 'Rabies Vaccine 5ml',         price: 8.50,  stock_level: 120, category: 'Vaccine' },
-        { name: 'Distemper Vaccine',           price: 11.00, stock_level: 8,   category: 'Vaccine' },
-        { name: 'Omega-3 Supplement 60 caps',  price: 14.99, stock_level: 60,  category: 'Medicine' },
-        { name: 'Deworming Tablets x10',       price: 4.50,  stock_level: 200, category: 'Medicine' },
-        { name: 'Premium Dry Cat Food 2kg',    price: 18.00, stock_level: 3,   category: 'Retail' },
-        { name: 'Dog Collar Size M',           price: 6.00,  stock_level: 90,  category: 'Retail' },
-        { name: 'Pet Shampoo 250ml',           price: 7.25,  stock_level: 55,  category: 'Retail' },
-        { name: 'Surgical Bandages (roll)',     price: 1.80,  stock_level: 300, category: 'Consumable' },
-        { name: 'Latex Gloves box/100',        price: 6.40,  stock_level: 150, category: 'Consumable' },
-        { name: 'Saline Solution 500ml',       price: 3.20,  stock_level: 5,   category: 'Consumable' }
+        // Vaccines
+        { name: 'Rabies Vaccine (Defensor 3) 10ml', price: 340.00,  stock_level: 120, category: 'Vaccine' },
+        { name: 'Feline Leukemia Vaccine (FeLV)',    price: 420.00,  stock_level: 8,   category: 'Vaccine' },
+        { name: 'Canine Parvovirus Vaccine (CPV)',   price: 380.00,  stock_level: 65,  category: 'Vaccine' },
+        { name: 'DHPP 5-in-1 Vaccine for Dogs',      price: 450.00,  stock_level: 80,  category: 'Vaccine' },
+        // Medicine
+        { name: 'Broad-Spectrum Dewormer Tablets (x10)', price: 180.00,  stock_level: 200, category: 'Medicine' },
+        { name: 'Omega-3 Skin & Coat Supplement (60 caps)', price: 290.00,  stock_level: 60,  category: 'Medicine' },
+        { name: 'Joint Support Glucosamine (Chews)', price: 320.00,  stock_level: 45,  category: 'Medicine' },
+        { name: 'Ear Mite & Infection Drops 15ml',   price: 150.00,  stock_level: 90,  category: 'Medicine' },
+        // Retail
+        { name: 'Premium Dry Cat Food (Urinary Care) 2kg', price: 490.00,  stock_level: 3,   category: 'Retail' },
+        { name: 'Orthopedic Memory Foam Dog Bed (L)', price: 1250.00, stock_level: 15,  category: 'Retail' },
+        { name: 'Ergonomic Anti-Choke Dog Harness (M)', price: 380.00,  stock_level: 40,  category: 'Retail' },
+        { name: 'Natural Tofu Cat Litter (6L)',      price: 220.00,  stock_level: 85,  category: 'Retail' },
+        // Consumables
+        { name: 'Sterile Surgical Sutures USP 3-0',   price: 75.00,   stock_level: 300, category: 'Consumable' },
+        { name: 'Medical Latex Gloves (box/100)',     price: 190.00,  stock_level: 150, category: 'Consumable' },
+        { name: 'Saline Infusion Solution 500ml',     price: 85.00,   stock_level: 5,   category: 'Consumable' },
+        { name: 'Cohesive Vet Wrap Bandage (6 rolls)', price: 110.00,  stock_level: 110, category: 'Consumable' }
     ];
 
     // Clean existing products with same names
@@ -63,36 +108,24 @@ async function seed() {
     if (pErr) { console.error('Product insert error:', pErr.message); return; }
     console.log('   ✓', products.length, 'products inserted');
 
-    // Step 3: Seed inventory_items — 3 items intentionally below threshold
+    // Step 3: Seed inventory_items matching products
     console.log('\n3. Seeding inventory items...');
     const inventoryData = products.map(p => {
-        let threshold = 10;
-        let costPrice = p.price * 0.6; // cost is ~60% of selling price
+        let threshold = 15;
+        let costPrice = p.price * 0.6; // cost is ~60% of retail
 
-        // Make specific items low/critical
-        if (p.name === 'Saline Solution 500ml') {
-            threshold = 20; // stock=5, threshold=20 → critical
-            costPrice = 1.60;
-        } else if (p.name === 'Distemper Vaccine') {
-            threshold = 20; // stock=8, threshold=20 → low
-            costPrice = 6.50;
-        } else if (p.name === 'Premium Dry Cat Food 2kg') {
-            threshold = 15; // stock=3, threshold=15 → critical
-            costPrice = 11.00;
-        } else if (p.name === 'Rabies Vaccine 5ml') {
-            threshold = 15; costPrice = 4.50;
-        } else if (p.name === 'Omega-3 Supplement 60 caps') {
-            threshold = 10; costPrice = 8.00;
-        } else if (p.name === 'Deworming Tablets x10') {
-            threshold = 20; costPrice = 2.00;
-        } else if (p.name === 'Dog Collar Size M') {
-            threshold = 10; costPrice = 2.80;
-        } else if (p.name === 'Pet Shampoo 250ml') {
-            threshold = 8; costPrice = 3.50;
-        } else if (p.name === 'Surgical Bandages (roll)') {
-            threshold = 30; costPrice = 0.90;
-        } else if (p.name === 'Latex Gloves box/100') {
-            threshold = 20; costPrice = 3.50;
+        // Specific configurations for stock levels
+        if (p.name === 'Saline Infusion Solution 500ml') {
+            threshold = 25; // stock=5, threshold=25 (Critical)
+            costPrice = 40.00;
+        } else if (p.name === 'Feline Leukemia Vaccine (FeLV)') {
+            threshold = 20; // stock=8, threshold=20 (Low)
+            costPrice = 250.00;
+        } else if (p.name === 'Premium Dry Cat Food (Urinary Care) 2kg') {
+            threshold = 15; // stock=3, threshold=15 (Critical)
+            costPrice = 300.00;
+        } else if (p.name === 'Orthopedic Memory Foam Dog Bed (L)') {
+            threshold = 5; costPrice = 750.00;
         }
 
         return {
@@ -114,19 +147,21 @@ async function seed() {
     if (iErr) console.error('   ✗ Inventory error:', iErr.message);
     else console.log('   ✓', inventoryData.length, 'inventory items');
 
-    // Step 4: Create 5 registered customer profiles
+    // Step 4: Create 8 registered customer profiles
     console.log('\n4. Creating customer profiles...');
     const customerEmails = [
         { email: 'sarah.pet@example.com', name: 'Sarah Ahmed', phone: '+20100000020' },
         { email: 'mohamed.k@example.com', name: 'Mohamed Khalil', phone: '+20100000021' },
         { email: 'layla.m@example.com', name: 'Layla Mansour', phone: '+20100000022' },
         { email: 'ahmed.f@example.com', name: 'Ahmed Fathy', phone: '+20100000023' },
-        { email: 'nour.h@example.com', name: 'Nour Hassan', phone: '+20100000024' }
+        { email: 'nour.h@example.com', name: 'Nour Hassan', phone: '+20100000024' },
+        { email: 'yasmine.y@example.com', name: 'Yasmine Youssef', phone: '+20100000025' },
+        { email: 'tarek.s@example.com', name: 'Tarek Soliman', phone: '+20100000026' },
+        { email: 'hoda.e@example.com', name: 'Hoda El-Sayed', phone: '+20100000027' }
     ];
 
     const customers = [];
     for (const c of customerEmails) {
-        // Try to sign up (if already exists, find by email)
         const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
             email: c.email, password: 'Customer123!'
         });
@@ -154,22 +189,29 @@ async function seed() {
     // Re-authenticate as owner
     await supabase.auth.signInWithPassword({ email: 'ziadhatem11204@gmail.com', password: '12345678' });
 
-    // Step 5: Seed 8 orders — mix of statuses
-    console.log('\n5. Seeding 8 orders...');
+    // Step 5: Seed 15 Orders
+    console.log('\n5. Seeding 15 orders...');
     const orderConfigs = [
         { status: 'Processing', custIdx: 0, daysAgo: 0, isOnline: true },
         { status: 'Processing', custIdx: 1, daysAgo: 1, isOnline: true },
         { status: 'Processing', custIdx: 2, daysAgo: 0, isOnline: true },
-        { status: 'Shipped', custIdx: 3, daysAgo: 2, isOnline: true },
-        { status: 'Shipped', custIdx: 4, daysAgo: 3, isOnline: true },
-        { status: 'Delivered', custIdx: 0, daysAgo: 5, isOnline: true },
-        { status: 'Delivered', custIdx: 1, daysAgo: 7, isOnline: false },  // In-store
-        { status: 'Delivered', custIdx: 2, daysAgo: 10, isOnline: false }, // In-store
+        { status: 'Processing', custIdx: 3, daysAgo: 2, isOnline: true },
+        { status: 'Shipped',    custIdx: 4, daysAgo: 1, isOnline: true },
+        { status: 'Shipped',    custIdx: 5, daysAgo: 2, isOnline: true },
+        { status: 'Shipped',    custIdx: 6, daysAgo: 3, isOnline: true },
+        { status: 'Delivered',  custIdx: 7, daysAgo: 4, isOnline: true },
+        { status: 'Delivered',  custIdx: 0, daysAgo: 5, isOnline: true },
+        { status: 'Delivered',  custIdx: 1, daysAgo: 6, isOnline: true },
+        { status: 'Delivered',  custIdx: 2, daysAgo: 7, isOnline: false }, // In-store
+        { status: 'Delivered',  custIdx: 3, daysAgo: 8, isOnline: false }, // In-store
+        { status: 'Delivered',  custIdx: 4, daysAgo: 9, isOnline: false }, // In-store
+        { status: 'Delivered',  custIdx: 5, daysAgo: 10, isOnline: false }, // In-store
+        { status: 'Delivered',  custIdx: 6, daysAgo: 12, isOnline: false }  // In-store
     ];
 
     const orderRows = orderConfigs.map((cfg, i) => {
         const cust = customers[cfg.custIdx % customers.length];
-        const totalAmount = (20 + Math.random() * 80).toFixed(2);
+        const totalAmount = (250 + Math.random() * 1250).toFixed(2);
         return {
             user_id: cust?.userId || ownerId,
             status: cfg.status,
@@ -189,14 +231,14 @@ async function seed() {
     if (oErr) { console.error('Order error:', oErr.message); return; }
     console.log('   ✓', orders.length, 'orders inserted');
 
-    // Step 6: Seed order_items — 2-4 items per order
+    // Step 6: Seed order_items (2-4 items per order)
     console.log('\n6. Seeding order items...');
     let totalItems = 0;
     for (const order of orders) {
         const numItems = 2 + Math.floor(Math.random() * 3); // 2-4 items
         const shuffled = [...products].sort(() => Math.random() - 0.5).slice(0, numItems);
         const items = shuffled.map(p => {
-            const qty = 1 + Math.floor(Math.random() * 5);
+            const qty = 1 + Math.floor(Math.random() * 3);
             return {
                 order_id: order.order_id,
                 product_id: p.product_id,
@@ -210,7 +252,7 @@ async function seed() {
     }
     console.log('   ✓', totalItems, 'order items');
 
-    // Step 7: Seed invoices — one per delivered order
+    // Step 7: Seed invoices for delivered orders
     console.log('\n7. Seeding invoices...');
     const deliveredOrders = orders.filter(o => o.status === 'Delivered');
     const invoiceRows = deliveredOrders.map(o => ({
@@ -222,15 +264,25 @@ async function seed() {
         issue_date: o.order_date
     }));
 
-    // Add a few more today's invoices for dashboard KPIs
+    // Add extra walk-in sales today for realistic dashboard activity
     invoiceRows.push({
         clinic_id: shopClinicId, client_id: null,
-        guest_client_name: 'Walk-in', total_amount: 42.50,
+        guest_client_name: 'Walk-in', total_amount: 860.00,
         status: 'Paid', issue_date: new Date().toISOString()
     });
     invoiceRows.push({
         clinic_id: shopClinicId, client_id: null,
-        guest_client_name: 'Walk-in', total_amount: 18.75,
+        guest_client_name: 'Walk-in', total_amount: 340.00,
+        status: 'Paid', issue_date: new Date().toISOString()
+    });
+    invoiceRows.push({
+        clinic_id: shopClinicId, client_id: null,
+        guest_client_name: 'Walk-in', total_amount: 1250.00,
+        status: 'Paid', issue_date: new Date().toISOString()
+    });
+    invoiceRows.push({
+        clinic_id: shopClinicId, client_id: null,
+        guest_client_name: 'Walk-in', total_amount: 220.00,
         status: 'Paid', issue_date: new Date().toISOString()
     });
 
@@ -238,36 +290,50 @@ async function seed() {
     if (invErr) console.error('   ✗ Invoices:', invErr.message);
     else console.log('   ✓', invoices.length, 'invoices');
 
-    // Step 8: Seed clinic_expenses — 4 restock entries
+    // Step 8: Seed clinic_expenses (restocking cost logs)
     console.log('\n8. Seeding restock expenses...');
     const expenseRows = [
         {
             clinic_id: shopClinicId,
             category: 'Inventory Restock',
-            description: 'Restock: Rabies Vaccine 5ml x50 from VetMed Supplies. Monthly restock',
-            amount: 225.00,
+            description: 'Restock: Defensor Rabies Vaccine x100 from VetMed Solutions',
+            amount: 2000.00,
             expense_date: new Date(Date.now() - 2 * 86400000).toISOString().split('T')[0]
         },
         {
             clinic_id: shopClinicId,
             category: 'Inventory Restock',
-            description: 'Restock: Deworming Tablets x10 x100 from PharmaVet. Bulk purchase',
-            amount: 200.00,
+            description: 'Restock: Broad-Spectrum Dewormer Tablets x150 from PharmaVet Egypt',
+            amount: 1620.00,
             expense_date: new Date(Date.now() - 5 * 86400000).toISOString().split('T')[0]
         },
         {
             clinic_id: shopClinicId,
             category: 'Inventory Restock',
-            description: 'Restock: Latex Gloves box/100 x30 from MedSupply Co. Regular order',
-            amount: 105.00,
-            expense_date: new Date(Date.now() - 12 * 86400000).toISOString().split('T')[0]
+            description: 'Restock: Orthopedic Memory Foam Dog Beds x10 from ComfortPet Ltd',
+            amount: 7500.00,
+            expense_date: new Date(Date.now() - 10 * 86400000).toISOString().split('T')[0]
         },
         {
             clinic_id: shopClinicId,
             category: 'Inventory Restock',
-            description: 'Restock: Surgical Bandages (roll) x100 from BandagePro. Warehouse deal',
-            amount: 90.00,
-            expense_date: new Date(Date.now() - 20 * 86400000).toISOString().split('T')[0]
+            description: 'Restock: Latex Gloves x50 boxes from Medical Supply Co.',
+            amount: 4750.00,
+            expense_date: new Date(Date.now() - 15 * 86400000).toISOString().split('T')[0]
+        },
+        {
+            clinic_id: shopClinicId,
+            category: 'Inventory Restock',
+            description: 'Restock: Natural Tofu Cat Litter x50 bags from EarthFriendly Dist.',
+            amount: 6600.00,
+            expense_date: new Date(Date.now() - 22 * 86400000).toISOString().split('T')[0]
+        },
+        {
+            clinic_id: shopClinicId,
+            category: 'Inventory Restock',
+            description: 'Restock: Saline Infusion Solutions x60 bottles from Egypt Hospital Supply',
+            amount: 2400.00,
+            expense_date: new Date(Date.now() - 28 * 86400000).toISOString().split('T')[0]
         }
     ];
 
@@ -275,15 +341,10 @@ async function seed() {
     if (eErr) console.error('   ✗ Expenses:', eErr.message);
     else console.log('   ✓', expenseRows.length, 'restock expenses');
 
-    console.log('\n=== Shop Owner Seed Complete! ===');
+    console.log('\n=== Enhanced Shop Owner Seed Complete! ===');
     console.log('Login: ziadhatem11204@gmail.com / 12345678');
     console.log('Shop Name: Paws & Care Shop');
-    console.log('user_type: Admin (shop owner)');
     console.log('clinic_id:', shopClinicId.slice(0, 8));
-    console.log('\nLow stock items to check:');
-    console.log('  - Saline Solution 500ml: stock=5, threshold=20 (Critical)');
-    console.log('  - Premium Dry Cat Food 2kg: stock=3, threshold=15 (Critical)');
-    console.log('  - Distemper Vaccine: stock=8, threshold=20 (Low)');
 }
 
 seed().catch(console.error);

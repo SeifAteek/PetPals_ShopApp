@@ -1,12 +1,12 @@
 /** Exact PetPals classic palette — keep in sync with iOS `PetPalsPalette.swift` */
 
 export const PP = {
-  honeydew: '#F2FFE9',
-  powderBlush: '#F2A4A5',
-  almondCream: '#E5D4C5',
-  richCerulean: '#3078A4',
-  navy: '#090087',
-  navyDark: '#010A2E',
+  honeydew: '#F1FBF2',    /* Mint cream — light theme base */
+  powderBlush: '#C8E6C9', /* Light sage green */
+  almondCream: '#D1E7DD', /* Soft green tint */
+  richCerulean: '#2E7D32', /* Forest green — primary brand color */
+  navy: '#1B5E20',        /* Deep forest green */
+  navyDark: '#0B250E',    /* Dark forest green base for dark theme */
 };
 
 function blendHex(a, b, t) {
@@ -22,22 +22,22 @@ function blendHex(a, b, t) {
   return `#${[r, g, bVal].map((x) => x.toString(16).padStart(2, '0')).join('')}`;
 }
 
-/** iOS `darkBackgroundGradient` stops */
+/** iOS `darkBackgroundGradient` stops — deep forest green base */
 export const darkBgGradient = `linear-gradient(180deg,
   ${PP.navyDark} 0%,
   ${blendHex(PP.navyDark, PP.richCerulean, 0.32)} 28%,
   ${blendHex(PP.navy, PP.richCerulean, 0.4)} 52%,
   ${blendHex(PP.navy, PP.powderBlush, 0.52)} 78%,
-  rgba(242, 164, 165, 0.88) 100%)`;
+  rgba(200, 230, 201, 0.88) 100%)`;
 
 /** iOS `meshGradientStops` for conic mesh */
 export const meshConicStops = [
   blendHex(PP.powderBlush, PP.richCerulean, 0.35),
-  'rgba(242, 164, 165, 0.9)',
+  'rgba(200, 230, 201, 0.9)',
   PP.honeydew,
   PP.almondCream,
-  'rgba(9, 0, 135, 0.92)',
-  'rgba(48, 120, 164, 0.75)',
+  'rgba(27, 94, 32, 0.92)',
+  'rgba(46, 125, 50, 0.75)',
   blendHex(PP.powderBlush, PP.honeydew, 0.5),
 ].join(', ');
 
