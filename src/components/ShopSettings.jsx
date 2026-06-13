@@ -87,7 +87,10 @@ const ShopSettings = () => {
 
             setProfileFeedback('success');
             addToast('Profile updated successfully.', 'success');
-            setTimeout(() => setProfileFeedback(''), 3000);
+            setTimeout(() => {
+                setProfileFeedback('');
+                window.location.reload();
+            }, 500);
         } catch (err) {
             console.error(err);
             setProfileFeedback('error');

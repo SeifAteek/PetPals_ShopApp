@@ -82,6 +82,27 @@ const ShopRestocking = () => {
         try {
             const description = `Restock: ${form.productName} x${qty} from ${form.supplierName || 'Unknown supplier'}. ${form.notes || ''}`.trim();
 
+            // Ensure shadow clinic exists in clinics table to satisfy foreign key constraints
+            try {
+                const { data: clinicShadow } = await supabase
+                    .from('clinics')
+                    .select('clinic_id')
+                    .eq('clinic_id', clinicId)
+                    .maybeSingle();
+                if (!clinicShadow) {
+                    const { data: { session } } = await supabase.auth.getSession();
+                    await supabase.from('clinics').insert({
+                        clinic_id: clinicId,
+                        name: (currentSupplier?.user_name || 'Shop') + ' Shadow',
+                        owner_id: session?.user?.id,
+                        location: 'Cairo, Egypt',
+                        phone: currentSupplier?.phone_number || '+20100000000'
+                    });
+                }
+            } catch (shadowErr) {
+                console.error('Failed to ensure shadow clinic profile during restocking:', shadowErr);
+            }
+
             // 1. Insert expense
             const { error: expError } = await supabase.from('clinic_expenses').insert({
                 clinic_id: clinicId,

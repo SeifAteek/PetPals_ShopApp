@@ -71,21 +71,49 @@ export const SupplierAppProvider = ({ children }) => {
                 .eq('owner_id', session.user.id)
                 .maybeSingle();
 
+            let activeShopId = null;
+            let activeShopProfile = null;
+
             if (ownedShop) {
-                setClinicId(ownedShop.shop_id);
-                setShopProfile(ownedShop);
+                activeShopId = ownedShop.shop_id;
+                activeShopProfile = ownedShop;
             } else {
                 const { data: firstShop } = await supabase
                     .from('shops').select('shop_id, name, logo_url')
                     .limit(1)
                     .maybeSingle();
                 if (firstShop) {
-                    setClinicId(firstShop.shop_id);
-                    setShopProfile(firstShop);
-                } else {
-                    setClinicId(null);
-                    setShopProfile(null);
+                    activeShopId = firstShop.shop_id;
+                    activeShopProfile = firstShop;
                 }
+            }
+
+            if (activeShopId) {
+                setClinicId(activeShopId);
+                setShopProfile(activeShopProfile);
+
+                // Proactively verify and create shadow clinic if not exists
+                try {
+                    const { data: clinicShadow } = await supabase
+                        .from('clinics')
+                        .select('clinic_id')
+                        .eq('clinic_id', activeShopId)
+                        .maybeSingle();
+                    if (!clinicShadow) {
+                        await supabase.from('clinics').insert({
+                            clinic_id: activeShopId,
+                            name: (activeShopProfile?.name || 'Shop') + ' Shadow',
+                            owner_id: session.user.id,
+                            location: 'Cairo, Egypt',
+                            phone: profile.phone_number || '+20100000000'
+                        });
+                    }
+                } catch (e) {
+                    console.error('Failed to ensure shadow clinic profile:', e);
+                }
+            } else {
+                setClinicId(null);
+                setShopProfile(null);
             }
         };
 
